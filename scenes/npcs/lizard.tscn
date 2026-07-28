@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://lcsix2a2rkhy"]
+
+[ext_resource type="Script" uid="uid://d02j5dodo61gv" path="res://scripts/npcs/lizard/lizard.gd" id="1_cdu1i"]
+[ext_resource type="Script" uid="uid://cadjxhbo7pqiq" path="res://scripts/npcs/components/blackboard_component.gd" id="2_cdu1i"]
+
+[node name="Lizard" type="Node2D" unique_id=1917244544]
+script = ExtResource("1_cdu1i")
+
+[node name="behavioral" type="Node" parent="." unique_id=1263409733]
+
+[node name="BlackboardComponent" type="Node" parent="behavioral" unique_id=316208972]
+unique_name_in_owner = true
+script = ExtResource("2_cdu1i")
+metadata/_custom_type_script = "uid://cadjxhbo7pqiq"

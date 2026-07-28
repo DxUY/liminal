@@ -1,0 +1,34 @@
+[gd_scene format=3 uid="uid://ds3871468uvej"]
+
+[ext_resource type="Script" uid="uid://by1ejvxrhupnq" path="res://scripts/world/map/grid_simulator.gd" id="1_42n5o"]
+[ext_resource type="Script" uid="uid://dpq3f2gnucwpu" path="res://scripts/world/map/map.gd" id="1_rexne"]
+[ext_resource type="RDShaderFile" uid="uid://bi1mw1hfd0s1b" path="res://resources/shaders/grid_simulation.glsl" id="2_51gt8"]
+[ext_resource type="Script" uid="uid://bsjk2aibygc3g" path="res://scripts/world/map/path_generator.gd" id="2_fk7cy"]
+[ext_resource type="Texture2D" uid="uid://dw432b3ncik8p" path="res://assets/tiles/map.png" id="3_o4nha"]
+[ext_resource type="Script" uid="uid://condytjr7043d" path="res://scripts/world/map/simulator_renderer.gd" id="5_o4nha"]
+[ext_resource type="Shader" uid="uid://crgvmpjvh07jm" path="res://resources/shaders/grid_render.gdshader" id="6_o4nha"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fk7cy"]
+shader = ExtResource("6_o4nha")
+
+[sub_resource type="QuadMesh" id="QuadMesh_c5jem"]
+
+[node name="Map" type="Node2D" unique_id=387318692]
+script = ExtResource("1_rexne")
+
+[node name="PathGenerator" type="Node" parent="." unique_id=1119387893]
+unique_name_in_owner = true
+script = ExtResource("2_fk7cy")
+map = ExtResource("3_o4nha")
+
+[node name="GridSimulator" type="Node" parent="." unique_id=1159196250]
+unique_name_in_owner = true
+script = ExtResource("1_42n5o")
+shader_file = ExtResource("2_51gt8")
+
+[node name="Renderer" type="MeshInstance2D" parent="." unique_id=366609442]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_fk7cy")
+position = Vector2(540, 326)
+mesh = SubResource("QuadMesh_c5jem")
+script = ExtResource("5_o4nha")
