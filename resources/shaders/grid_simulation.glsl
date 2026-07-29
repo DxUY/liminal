@@ -3,80 +3,112 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-layout(rgba32f, binding = 0) uniform readonly image2D CurrentGrid;
-layout(rgba32f, binding = 1) uniform writeonly image2D NextGrid;
+// .r contains the element ID / info
+// .g is used for masking. The mask prevents a piece from falling twice in consecutive steps.
+layout(rg8, set = 0, binding = 0) restrict uniform image2D terrain;
 
-layout(set = 0, std430, binding = 2) readonly buffer SimulationData {
-	uint Width;
-	uint Height;
-} sim;
+// Binding 1: Element Database Structured Buffer
+layout(set = 0, binding = 1, std430) buffer ElementData {
+    int data[];
+} elements_db;
 
-struct Element {
-	uint type;
-	uint dataIndex;
+// Binding 2: Solid Properties Structured Buffer
+layout(set = 0, binding = 2, std430) buffer SolidData {
+    int data[];
+} solids_db;
+
+// Push Constant will be padded to be multiple of 16 bytes
+layout(push_constant, std430) uniform Params {
+    int offset;
+    float time;
+    ivec2 mousePos;
+} params;
+
+// Hashes from https://github.com/Angelo1211/2020-Weekly-Shader-Challenge/blob/master/hashes.glsl
+uint murmurHash13(uvec3 src) {
+    const uint M = 0x5bd1e995u;
+    uint h = 1190494759u;
+    src *= M; src ^= src>>24u; src *= M;
+    h *= M; h ^= src.x; h *= M; h ^= src.y; h *= M; h ^= src.z;
+    h ^= h>>13u; h *= M; h ^= h>>15u;
+    return h;
+}
+
+// 1 output, 3 inputs
+float hash13(vec3 src) {
+    uint h = murmurHash13(floatBitsToUint(src));
+    return uintBitsToFloat(h & 0x007fffffu | 0x3f800000u) - 1.0;
+}
+
+// Sampling function with boundary handling
+ivec2 loadCoordinate(ivec2 id, ivec2 size) {
+    if(params.mousePos == id) {
+        // Return Sand or another element ID instead of hardcoded 1
+        return ivec2(1, 0);
+    }
+    if(id.y >= size.y) {
+        return ivec2(1, 0);
+    }
+    if(id.y < 0 || id.x < 0 || id.x >= size.x) {
+        return ivec2(0, 0);
+    }
+    return ivec2(imageLoad(terrain, id).rg);
+}
+
+// Writing function with boundary handling
+void storeCoordinate(ivec2 id, ivec2 size, ivec2 value) {
+    if(any(greaterThanEqual(id, size)) || any(lessThan(id, ivec2(0)))) {
+        return;
+    }
+    imageStore(terrain, id, vec4(value.r, value.g, 0, 0));
+}
+
+int transitionCode(int code, float rng) {
+    // Low Chance for nothing to change to break up patterns due to algorithm
+    if(rng > 0.85) return code;
+    switch(code) {
+        case 4: 
+            return (rng > 0.98 ? 2 : 1);
+        case 5: case 6: case 9: case 10: case 12: 
+            return 3;
+        case 8: 
+            return (rng > 0.98 ? 1 : 2);
+        case 13: 
+            return( rng > 0.98 ? 11 : 7);
+        case 14: 
+            return( rng > 0.98 ? 7: 11);
+        default: return code;
+    }
+    return code;
+}
+
+const ivec2 offsets[4] = {
+    {1, 1},
+    {0, 1},
+    {1, 0},
+    {0, 0}
 };
-
-layout(set = 0, std430, binding = 3) readonly buffer ElementDatabase {
-	Element elements[];
-} element_db;
-
-struct Solid {
-	uint hardness;
-};
-
-layout(set = 0, std430, binding = 4) readonly buffer SolidDatabase {
-	Solid solids[];
-} solid_db;
-
-bool InBounds(ivec2 p) {
-	return p.x >= 0 && p.y >= 0 && p.x < int(sim.Width) && p.y < int(sim.Height);
-}
-
-uint GetCell(ivec2 p) {
-	return uint(imageLoad(CurrentGrid, p).r);
-}
-
-void SetCell(ivec2 p, uint element) {
-	imageStore(NextGrid, p, vec4(float(element), 0.0, 0.0, 0.0));
-}
-
-void SimulatedSolid(ivec2 cell, uint elementId, Solid solid) {
-	ivec2 below = cell + ivec2(0, 1);
-
-	if (InBounds(below) && GetCell(below) == 0u) {
-		SetCell(below, elementId);
-		SetCell(cell, 0u);
-	} else {
-		SetCell(cell, elementId);
-	}
-}
 
 void main() {
-	ivec2 cell = ivec2(gl_GlobalInvocationID.xy);
+    // Upper left corner of 2x2 block. Can have negative coordinates!
+    ivec2 baseID = 2 * ivec2(gl_GlobalInvocationID.xy) - params.offset;
+    ivec2 size = imageSize(terrain);
+    if(any(greaterThanEqual(baseID, size))) {
+        return;
+    }
 
-	if (!InBounds(cell)) return;
+    ivec2 value = ivec2(0);
+    for(int i = 0; i < 4; ++i) {
+        value += loadCoordinate(baseID + offsets[i], size) << i;
+    }
 
-	uint elementId = GetCell(cell);
+    int newValue = transitionCode(value.r & (15 - value.g), hash13(vec3(baseID, params.time)));
+    int origValue = value.r;
+    value.r = (origValue & value.g) | newValue;
+    value.g = (15 - origValue) & value.r;
 
-	SetCell(cell, elementId);
-
-	Element element = element_db.elements[elementId];
-
-	switch (element.type) {
-		case 1u:
-			Solid solid = solid_db.solids[element.dataIndex];
-			SimulatedSolid(cell, elementId, solid);
-			break;
-
-		case 2u:
-			break;
-
-		case 3u:
-			break;
-		default:
-			SetCell(cell, elementId);
-			break;
-	}
-
-	memoryBarrierImage();
+    for(int i = 0; i < 4; ++i) {
+        ivec2 val = (value & (1 << i)) >> i;
+        storeCoordinate(baseID + offsets[i], size, val);
+    }
 }

@@ -1,4 +1,4 @@
-class_name Player extends Node2D
+class_name Player extends Control
 
 @onready var mouse_component: MouseComponent = %MouseComponent
 @onready var keyboard_component: KeyboardComponent = %KeyboardComponent

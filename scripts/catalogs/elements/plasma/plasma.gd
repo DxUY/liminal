@@ -1,1 +1,1 @@
-class_name Plamsa extends Element
+@abstract class_name Plamsa extends Element

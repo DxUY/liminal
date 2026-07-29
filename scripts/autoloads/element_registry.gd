@@ -28,10 +28,8 @@ func get_all() -> Dictionary[int, Element]:
 func build_gpu_databases() -> Dictionary:
 	var element_data := PackedInt32Array()
 	var solid_data := PackedInt32Array()
-	var liquid_data := PackedInt32Array()
 
 	var solid_index := 0
-	var liquid_index := 0
 
 	for element in _elements.values():
 		if element is Empty:
@@ -45,15 +43,16 @@ func build_gpu_databases() -> Dictionary:
 			element.serialize_gpu(solid_data)
 			solid_index += 1
 
-		elif element is Liquid:
-			element_data.push_back(Element.Type.LIQUID)
-			element_data.push_back(liquid_index)
-
-			element.serialize_gpu(liquid_data)
-			liquid_index += 1
-
 	return {
 		"elements": element_data,
 		"solids": solid_data,
-		"liquids": liquid_data,
 	}
+
+## Gather the rgba values of elements and put it inside a 1D image
+func build_color_palette() -> Image:
+	var image := Image.create(_elements.size(), 1, false, Image.FORMAT_RGBA8)
+
+	for element: Element in _elements.values():
+		image.set_pixel(element.id, 0, element.color)
+
+	return image

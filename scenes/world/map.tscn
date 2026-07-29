@@ -1,19 +1,22 @@
 [gd_scene format=3 uid="uid://ds3871468uvej"]
 
-[ext_resource type="Script" uid="uid://by1ejvxrhupnq" path="res://scripts/world/map/grid_simulator.gd" id="1_42n5o"]
+[ext_resource type="Script" uid="uid://by1ejvxrhupnq" path="res://scripts/world/map/simulator.gd" id="1_42n5o"]
 [ext_resource type="Script" uid="uid://dpq3f2gnucwpu" path="res://scripts/world/map/map.gd" id="1_rexne"]
-[ext_resource type="RDShaderFile" uid="uid://bi1mw1hfd0s1b" path="res://resources/shaders/grid_simulation.glsl" id="2_51gt8"]
 [ext_resource type="Script" uid="uid://bsjk2aibygc3g" path="res://scripts/world/map/path_generator.gd" id="2_fk7cy"]
 [ext_resource type="Texture2D" uid="uid://dw432b3ncik8p" path="res://assets/tiles/map.png" id="3_o4nha"]
-[ext_resource type="Script" uid="uid://condytjr7043d" path="res://scripts/world/map/simulator_renderer.gd" id="5_o4nha"]
-[ext_resource type="Shader" uid="uid://crgvmpjvh07jm" path="res://resources/shaders/grid_render.gdshader" id="6_o4nha"]
+[ext_resource type="Script" uid="uid://condytjr7043d" path="res://scripts/world/map/map_texture_rect.gd" id="5_o4nha"]
+[ext_resource type="Shader" uid="uid://crgvmpjvh07jm" path="res://resources/shaders/element_render.gdshader" id="6_o4nha"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fk7cy"]
 shader = ExtResource("6_o4nha")
 
-[sub_resource type="QuadMesh" id="QuadMesh_c5jem"]
-
-[node name="Map" type="Node2D" unique_id=387318692]
+[node name="Map" type="Control" unique_id=580768057]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_rexne")
 
 [node name="PathGenerator" type="Node" parent="." unique_id=1119387893]
@@ -21,14 +24,18 @@ unique_name_in_owner = true
 script = ExtResource("2_fk7cy")
 map = ExtResource("3_o4nha")
 
-[node name="GridSimulator" type="Node" parent="." unique_id=1159196250]
+[node name="Simulator" type="Node" parent="." unique_id=1159196250 node_paths=PackedStringArray("texture_rect")]
 unique_name_in_owner = true
 script = ExtResource("1_42n5o")
-shader_file = ExtResource("2_51gt8")
+texture_rect = NodePath("../MapTextureRect")
 
-[node name="Renderer" type="MeshInstance2D" parent="." unique_id=366609442]
+[node name="MapTextureRect" type="TextureRect" parent="." unique_id=2033687256]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_fk7cy")
-position = Vector2(540, 326)
-mesh = SubResource("QuadMesh_c5jem")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("5_o4nha")

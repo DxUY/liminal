@@ -5,14 +5,19 @@
 [ext_resource type="Script" uid="uid://23r22hxxsg07" path="res://scripts/shared_components/body/rig_component.gd" id="2_h17s1"]
 [ext_resource type="Script" uid="uid://dmkrbdrlx7ii6" path="res://scripts/shared_components/body/constraint_component.gd" id="3_je7p5"]
 [ext_resource type="Script" uid="uid://kbdkwax51k13" path="res://scripts/player/components/input/keyboard_component.gd" id="3_lvxji"]
-[ext_resource type="Script" uid="uid://dfe1ecm53c83d" path="res://scripts/player/systems/camera_controller.gd" id="4_p47bc"]
 [ext_resource type="Script" uid="uid://choe5oigufyvb" path="res://scripts/player/systems/canvas.gd" id="5_p47bc"]
 [ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="7_0owmy"]
 [ext_resource type="Script" uid="uid://c1vp0ojjvaby1" path="res://addons/godot_state_charts/parallel_state.gd" id="7_qek5x"]
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="8_5gtgg"]
 [ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="9_h17s1"]
 
-[node name="Player" type="Node2D" unique_id=766623750]
+[node name="Player" type="Control" unique_id=80046679]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_8afob")
 
 [node name="Body" type="Node" parent="." unique_id=1932139857]
@@ -37,15 +42,14 @@ unique_name_in_owner = true
 script = ExtResource("3_lvxji")
 metadata/_custom_type_script = "uid://kbdkwax51k13"
 
-[node name="CameraController" type="Node2D" parent="." unique_id=1489679418]
+[node name="Canvas" type="TextureRect" parent="." unique_id=1467487065]
 unique_name_in_owner = true
-script = ExtResource("4_p47bc")
-
-[node name="Camera" type="Camera2D" parent="CameraController" unique_id=1173386061]
-unique_name_in_owner = true
-
-[node name="Canvas" type="Sprite2D" parent="." unique_id=279521081]
-unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("5_p47bc")
 
 [node name="StateChart" type="Node" parent="." unique_id=157430810]

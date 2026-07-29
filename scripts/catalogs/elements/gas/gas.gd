@@ -1,1 +1,1 @@
-class_name Gas extends Element
+@abstract class_name Gas extends Element
