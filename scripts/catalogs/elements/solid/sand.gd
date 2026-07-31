@@ -5,7 +5,8 @@ func _init() -> void:
 	id = 1
 	name = "Sand"
 	color = Color(1.0, 0.9, 0.4)
+	density = 1
+	hardness = 1
 
 func serialize_gpu(data: PackedInt32Array) -> void:
-	data.push_back(type)
-	data.push_back(hardness)
+	super(data)

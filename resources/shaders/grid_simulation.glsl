@@ -3,112 +3,201 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-// .r contains the element ID / info
-// .g is used for masking. The mask prevents a piece from falling twice in consecutive steps.
-layout(rg8, set = 0, binding = 0) restrict uniform image2D terrain;
+layout(rg8, set = 0, binding = 0) uniform readonly image2D terrain_read;
+layout(rg8, set = 0, binding = 1) uniform writeonly image2D terrain_write;
 
-// Binding 1: Element Database Structured Buffer
-layout(set = 0, binding = 1, std430) buffer ElementData {
-    int data[];
-} elements_db;
+layout(set = 0, binding = 2, std430) buffer ElementData { int data[]; } elements_db;
+layout(set = 0, binding = 3, std430) buffer SolidData { int data[]; } solids_db;
 
-// Binding 2: Solid Properties Structured Buffer
-layout(set = 0, binding = 2, std430) buffer SolidData {
-    int data[];
-} solids_db;
-
-// Push Constant will be padded to be multiple of 16 bytes
 layout(push_constant, std430) uniform Params {
     int offset;
     float time;
     ivec2 mousePos;
 } params;
 
-// Hashes from https://github.com/Angelo1211/2020-Weekly-Shader-Challenge/blob/master/hashes.glsl
+const ivec2 MOVE_NONE = ivec2(0, 0);
+const ivec2 MOVE_DOWN = ivec2(0, 1);
+const ivec2 MOVE_LEFT = ivec2(-1, 1);
+const ivec2 MOVE_RIGHT = ivec2(1, 1);
+
+const int WINNER_NONE = 0;
+const int WINNER_STRAIGHT = 1;
+const int WINNER_DIAG_LEFT = 2;
+const int WINNER_DIAG_RIGHT = 3;
+
+shared int s_cache[144];
+shared ivec2 s_move[64];
+
+#define CACHE(x, y) s_cache[(y) * 12 + (x)]
+
 uint murmurHash13(uvec3 src) {
     const uint M = 0x5bd1e995u;
     uint h = 1190494759u;
-    src *= M; src ^= src>>24u; src *= M;
+    src *= M; src ^= src >> 24u; src *= M;
     h *= M; h ^= src.x; h *= M; h ^= src.y; h *= M; h ^= src.z;
-    h ^= h>>13u; h *= M; h ^= h>>15u;
+    h ^= h >> 13u; h *= M; h ^= h >> 15u;
     return h;
 }
 
-// 1 output, 3 inputs
 float hash13(vec3 src) {
     uint h = murmurHash13(floatBitsToUint(src));
     return uintBitsToFloat(h & 0x007fffffu | 0x3f800000u) - 1.0;
 }
 
-// Sampling function with boundary handling
-ivec2 loadCoordinate(ivec2 id, ivec2 size) {
-    if(params.mousePos == id) {
-        // Return Sand or another element ID instead of hardcoded 1
-        return ivec2(1, 0);
-    }
-    if(id.y >= size.y) {
-        return ivec2(1, 0);
-    }
-    if(id.y < 0 || id.x < 0 || id.x >= size.x) {
-        return ivec2(0, 0);
-    }
-    return ivec2(imageLoad(terrain, id).rg);
+int loadGlobalElement(ivec2 id, ivec2 size) {
+    if (params.mousePos == id) return 1;
+    if (id.y >= size.y) return 1;
+    if (id.y < 0 || id.x < 0 || id.x >= size.x) return -1;
+    return int(imageLoad(terrain_read, id).r);
 }
 
-// Writing function with boundary handling
-void storeCoordinate(ivec2 id, ivec2 size, ivec2 value) {
-    if(any(greaterThanEqual(id, size)) || any(lessThan(id, ivec2(0)))) {
-        return;
-    }
-    imageStore(terrain, id, vec4(value.r, value.g, 0, 0));
+int getSharedElement(ivec2 localPos) {
+    return CACHE(localPos.x + 2, localPos.y + 2);
 }
 
-int transitionCode(int code, float rng) {
-    // Low Chance for nothing to change to break up patterns due to algorithm
-    if(rng > 0.85) return code;
-    switch(code) {
-        case 4: 
-            return (rng > 0.98 ? 2 : 1);
-        case 5: case 6: case 9: case 10: case 12: 
-            return 3;
-        case 8: 
-            return (rng > 0.98 ? 1 : 2);
-        case 13: 
-            return( rng > 0.98 ? 11 : 7);
-        case 14: 
-            return( rng > 0.98 ? 7: 11);
-        default: return code;
+int getElementDensity(int elementId) {
+    if (elementId <= 0) return 0;
+    if (elementId == 1) {
+        return elements_db.data[0];
     }
-    return code;
+    return 0;
 }
 
-const ivec2 offsets[4] = {
-    {1, 1},
-    {0, 1},
-    {1, 0},
-    {0, 0}
-};
+ivec2 getDesiredMoveShared(ivec2 localPos, ivec2 globalPos) {
+    int currentId = getSharedElement(localPos);
+    if (currentId <= 0) return MOVE_NONE;
+
+    int currentDensity = getElementDensity(currentId);
+
+    int idBelow      = getSharedElement(localPos + ivec2(0, 1));
+    int idBelowLeft  = getSharedElement(localPos + ivec2(-1, 1));
+    int idBelowRight = getSharedElement(localPos + ivec2(1, 1));
+
+    bool canMoveDown = (idBelow == 0) || (currentDensity > getElementDensity(idBelow));
+    bool canLeft     = (idBelowLeft == 0) || (currentDensity > getElementDensity(idBelowLeft));
+    bool canRight    = (idBelowRight == 0) || (currentDensity > getElementDensity(idBelowRight));
+
+    if (canMoveDown && idBelow != -1) {
+        if (idBelow == 0 || currentDensity > getElementDensity(idBelow)) {
+            return MOVE_DOWN;
+        }
+    }
+
+    if (canLeft && canRight) {
+        float rng = hash13(vec3(globalPos, params.time));
+        bool left = rng > 0.5;
+        if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) {
+            left = !left;
+        }
+        return left ? MOVE_LEFT : MOVE_RIGHT;
+    } else if (canLeft) {
+        return MOVE_LEFT;
+    } else if (canRight) {
+        return MOVE_RIGHT;
+    }
+    
+    return MOVE_NONE;
+}
+
+ivec2 getCachedOrComputedMove(ivec2 localPos, ivec2 globalPos) {
+    if (localPos.x >= 0 && localPos.x < 8 && localPos.y >= 0 && localPos.y < 8) {
+        return s_move[localPos.y * 8 + localPos.x];
+    }
+    return getDesiredMoveShared(localPos, globalPos);
+}
+
+int getWinnerType(ivec2 localTarget, ivec2 globalTarget) {
+    ivec2 srcStraight = localTarget + ivec2(0, -1);
+    if (getSharedElement(srcStraight) > 0) {
+        ivec2 move = getCachedOrComputedMove(srcStraight, globalTarget + ivec2(0, -1));
+        if (move == MOVE_DOWN) return WINNER_STRAIGHT;
+    }
+
+    bool prioritizeLeftFirst = ((globalTarget.x + globalTarget.y + params.offset) & 1) == 0;
+
+    if (prioritizeLeftFirst) {
+        ivec2 srcDiagLeft = localTarget + ivec2(1, -1);
+        if (getSharedElement(srcDiagLeft) > 0) {
+            ivec2 move = getCachedOrComputedMove(srcDiagLeft, globalTarget + ivec2(1, -1));
+            if (move == MOVE_LEFT) return WINNER_DIAG_LEFT;
+        }
+        ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
+        if (getSharedElement(srcDiagRight) > 0) {
+            ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
+            if (move == MOVE_RIGHT) return WINNER_DIAG_RIGHT;
+        }
+    } else {
+        ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
+        if (getSharedElement(srcDiagRight) > 0) {
+            ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
+            if (move == MOVE_RIGHT) return WINNER_DIAG_RIGHT;
+        }
+        ivec2 srcDiagLeft = localTarget + ivec2(1, -1);
+        if (getSharedElement(srcDiagLeft) > 0) {
+            ivec2 move = getCachedOrComputedMove(srcDiagLeft, globalTarget + ivec2(1, -1));
+            if (move == MOVE_LEFT) return WINNER_DIAG_LEFT;
+        }
+    }
+
+    return WINNER_NONE;
+}
 
 void main() {
-    // Upper left corner of 2x2 block. Can have negative coordinates!
-    ivec2 baseID = 2 * ivec2(gl_GlobalInvocationID.xy) - params.offset;
-    ivec2 size = imageSize(terrain);
-    if(any(greaterThanEqual(baseID, size))) {
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(terrain_read);
+    ivec2 lid = ivec2(gl_LocalInvocationID.xy);
+
+    for (int y = lid.y; y < 12; y += 8) {
+        for (int x = lid.x; x < 12; x += 8) {
+            ivec2 targetGlobal = ivec2(gl_WorkGroupID.xy) * 8 + ivec2(x, y) - ivec2(2);
+            CACHE(x, y) = loadGlobalElement(targetGlobal, size);
+        }
+    }
+    barrier();
+
+    s_move[lid.y * 8 + lid.x] = getDesiredMoveShared(lid, gid);
+    barrier();
+
+    if (any(greaterThanEqual(gid, size))) return;
+
+    int currentId = getSharedElement(lid);
+    if (currentId < 0) {
+        imageStore(terrain_write, gid, vec4(float(currentId), 0.0, 0.0, 0.0));
         return;
     }
 
-    ivec2 value = ivec2(0);
-    for(int i = 0; i < 4; ++i) {
-        value += loadCoordinate(baseID + offsets[i], size) << i;
+    int finalElement = 0;
+    int winnerType = getWinnerType(lid, gid);
+
+    if (winnerType == WINNER_STRAIGHT) {
+        finalElement = getSharedElement(lid + ivec2(0, -1));
+    } else if (winnerType == WINNER_DIAG_LEFT) {
+        finalElement = getSharedElement(lid + ivec2(1, -1));
+    } else if (winnerType == WINNER_DIAG_RIGHT) {
+        finalElement = getSharedElement(lid + ivec2(-1, -1));
+    } else if (currentId > 0) {
+        ivec2 myMove = s_move[lid.y * 8 + lid.x];
+        
+        if (myMove == MOVE_NONE) {
+            finalElement = currentId;
+        } else {
+            ivec2 localTarget = lid + myMove;
+            ivec2 globalTarget = gid + myMove;
+
+            int targetWinner = getWinnerType(localTarget, globalTarget);
+
+            bool accepted = false;
+            if (myMove == MOVE_DOWN && targetWinner == WINNER_STRAIGHT) accepted = true;
+            if (myMove == MOVE_LEFT && targetWinner == WINNER_DIAG_LEFT) accepted = true;
+            if (myMove == MOVE_RIGHT && targetWinner == WINNER_DIAG_RIGHT) accepted = true;
+
+            if (accepted) {
+                finalElement = 0;
+            } else {
+                finalElement = currentId;
+            }
+        }
     }
 
-    int newValue = transitionCode(value.r & (15 - value.g), hash13(vec3(baseID, params.time)));
-    int origValue = value.r;
-    value.r = (origValue & value.g) | newValue;
-    value.g = (15 - origValue) & value.r;
-
-    for(int i = 0; i < 4; ++i) {
-        ivec2 val = (value & (1 << i)) >> i;
-        storeCoordinate(baseID + offsets[i], size, val);
-    }
+    imageStore(terrain_write, gid, vec4(float(finalElement), 0.0, 0.0, 0.0));
 }

@@ -32,8 +32,13 @@ var rd: RenderingDevice
 
 var shader: RID
 var pipeline: RID
-var uniform_set: RID
-var texture_rid: RID
+
+# Ping-Pong Resources
+var texture_rid_a: RID
+var texture_rid_b: RID
+var uniform_set_a: RID # Reads A, Writes B
+var uniform_set_b: RID # Reads B, Writes A
+var frame_toggle := false
 
 var element_buffer_rid: RID
 var solid_buffer_rid: RID
@@ -97,28 +102,29 @@ func _create_element_gpu_buffers() -> void:
 
 #region Simulation
 
-## Dispatches two compute shader passes.
+## Dispatches the ping-pong compute pass.
 func _dispatch_simulation(delta: float) -> void:
 	var mouse := texture_rect.get_mouse_texel()
-
-	var first_pass := _create_push_constants(0, elapsed, mouse)
-	var second_pass := _create_push_constants(1, elapsed + delta * 0.5, mouse)
 	var groups := _get_dispatch_groups()
 
+	# Select which uniform set to use based on the ping-pong frame toggle
+	var active_uniform_set = uniform_set_a if not frame_toggle else uniform_set_b
+
+	var pc := _create_push_constants(0, elapsed, mouse)
+
 	var list := rd.compute_list_begin()
-
 	rd.compute_list_bind_compute_pipeline(list, pipeline)
-	rd.compute_list_bind_uniform_set(list, uniform_set, 0)
-	_dispatch_pass(list, first_pass, groups)
-	rd.compute_list_add_barrier(list)
-	_dispatch_pass(list, second_pass, groups)
-	rd.compute_list_end()
-	elapsed += delta
-
-## Dispatches a single compute pass.
-func _dispatch_pass(list: int, push_constants: PackedByteArray,groups: Vector2i) -> void:
-	rd.compute_list_set_push_constant(list, push_constants, push_constants.size())
+	rd.compute_list_bind_uniform_set(list, active_uniform_set, 0)
+	rd.compute_list_set_push_constant(list, pc, pc.size())
 	rd.compute_list_dispatch(list, groups.x, groups.y, 1)
+	rd.compute_list_end()
+
+	# Swap which texture is displayed on screen
+	var wrapper := texture_rect.texture as Texture2DRD
+	wrapper.texture_rd_rid = texture_rid_b if not frame_toggle else texture_rid_a
+
+	frame_toggle = not frame_toggle
+	elapsed += delta
 
 #endregion
 
@@ -133,26 +139,28 @@ func _update_texture_if_needed() -> void:
 	texture_dirty = false
 	call_deferred("_recreate_texture")
 
-## Recreates the simulation texture and uniform set.
+## Recreates the simulation textures and ping-pong uniform sets.
 func _recreate_texture() -> void:
 	if Engine.is_editor_hint(): return
 
-	if uniform_set.is_valid():
-		rd.free_rid(uniform_set)
+	if uniform_set_a.is_valid(): rd.free_rid(uniform_set_a)
+	if uniform_set_b.is_valid(): rd.free_rid(uniform_set_b)
+	if texture_rid_a.is_valid(): rd.free_rid(texture_rid_a)
+	if texture_rid_b.is_valid(): rd.free_rid(texture_rid_b)
 
-	if texture_rid.is_valid():
-		rd.free_rid(texture_rid)
+	texture_rid_a = _create_single_texture()
+	texture_rid_b = _create_single_texture()
 
-	texture_rid = _create_texture()
-	uniform_set = _create_uniform_set(texture_rid)
+	# Uniform Set A: Binding 0 reads A, Binding 1 writes B
+	uniform_set_a = _create_ping_pong_uniform_set(texture_rid_a, texture_rid_b)
+	# Uniform Set B: Binding 0 reads B, Binding 1 writes A
+	uniform_set_b = _create_ping_pong_uniform_set(texture_rid_b, texture_rid_a)
 
 	var wrapper := Texture2DRD.new()
-	wrapper.texture_rd_rid = texture_rid
-
+	wrapper.texture_rd_rid = texture_rid_a
 	texture_rect.texture = wrapper
 
-
-func _create_texture() -> RID:
+func _create_single_texture() -> RID:
 	var format := RDTextureFormat.new()
 
 	format.format = RenderingDevice.DATA_FORMAT_R8G8_UNORM
@@ -166,27 +174,34 @@ func _create_texture() -> RID:
 
 	return rd.texture_create(format, RDTextureView.new())
 
-func _create_uniform_set(texture: RID) -> RID:
+func _create_ping_pong_uniform_set(read_tex: RID, write_tex: RID) -> RID:
 	var uniforms: Array[RDUniform] = []
 
-	# Binding 0: Image Texture (Simulation Grid)
-	var img_uniform := RDUniform.new()
-	img_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	img_uniform.binding = 0
-	img_uniform.add_id(texture)
-	uniforms.append(img_uniform)
+	# Binding 0: Read-only Image Texture (terrain_read)
+	var read_uniform := RDUniform.new()
+	read_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	read_uniform.binding = 0
+	read_uniform.add_id(read_tex)
+	uniforms.append(read_uniform)
 
-	# Binding 1: Element Database Buffer
+	# Binding 1: Write-only Image Texture (terrain_write)
+	var write_uniform := RDUniform.new()
+	write_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+	write_uniform.binding = 1
+	write_uniform.add_id(write_tex)
+	uniforms.append(write_uniform)
+
+	# Binding 2: Element Database Buffer
 	var elem_uniform := RDUniform.new()
 	elem_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	elem_uniform.binding = 1
+	elem_uniform.binding = 2
 	elem_uniform.add_id(element_buffer_rid)
 	uniforms.append(elem_uniform)
 
-	# Binding 2: Solid Properties Buffer
+	# Binding 3: Solid Properties Buffer
 	var solid_uniform := RDUniform.new()
 	solid_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	solid_uniform.binding = 2
+	solid_uniform.binding = 3
 	solid_uniform.add_id(solid_buffer_rid)
 	uniforms.append(solid_uniform)
 
@@ -209,13 +224,12 @@ func _create_push_constants(pass_index: int, time: float, mouse: Vector2i) -> Pa
 
 	return pc
 
-
 func _get_dispatch_groups() -> Vector2i:
 	@warning_ignore("integer_division")
-	var x := (((width + 1) / 2) + 7) / 8
+	var x := (width + 7) / 8
 
 	@warning_ignore("integer_division")
-	var y := (((height + 1) / 2) + 7) / 8
+	var y := (height + 7) / 8
 
 	return Vector2i(x, y)
 
@@ -224,11 +238,13 @@ func _get_dispatch_groups() -> Vector2i:
 #region Cleanup
 
 func _free_resources() -> void:
-	rd.free_rid(pipeline)
-	rd.free_rid(uniform_set)
-	rd.free_rid(texture_rid)
-	rd.free_rid(shader)
-	rd.free_rid(element_buffer_rid)
-	rd.free_rid(solid_buffer_rid)
+	if pipeline.is_valid(): rd.free_rid(pipeline)
+	if uniform_set_a.is_valid(): rd.free_rid(uniform_set_a)
+	if uniform_set_b.is_valid(): rd.free_rid(uniform_set_b)
+	if texture_rid_a.is_valid(): rd.free_rid(texture_rid_a)
+	if texture_rid_b.is_valid(): rd.free_rid(texture_rid_b)
+	if shader.is_valid(): rd.free_rid(shader)
+	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
+	if solid_buffer_rid.is_valid(): rd.free_rid(solid_buffer_rid)
 
 #endregion
