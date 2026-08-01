@@ -42,6 +42,7 @@ var frame_toggle := false
 
 var element_buffer_rid: RID
 var solid_buffer_rid: RID
+var liquid_buffer_rid: RID
 
 #endregion
 
@@ -94,9 +95,11 @@ func _create_element_gpu_buffers() -> void:
 	
 	var element_data: PackedInt32Array = db["elements"]
 	var solid_data: PackedInt32Array = db["solids"]
+	var liquid_data: PackedInt32Array = db["liquid"]
 	
 	element_buffer_rid = rd.storage_buffer_create(element_data.size() * 4, element_data.to_byte_array())
 	solid_buffer_rid = rd.storage_buffer_create(solid_data.size() * 4, solid_data.to_byte_array())
+	liquid_buffer_rid = rd.storage_buffer_create(liquid_data.size() * 4, liquid_data.to_byte_array())
 
 #endregion
 
@@ -204,6 +207,13 @@ func _create_ping_pong_uniform_set(read_tex: RID, write_tex: RID) -> RID:
 	solid_uniform.binding = 3
 	solid_uniform.add_id(solid_buffer_rid)
 	uniforms.append(solid_uniform)
+	
+	# Binding 4: Liquid Propertoes Buffer
+	var liquid_uniform := RDUniform.new()
+	liquid_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
+	liquid_uniform.binding = 4
+	liquid_uniform.add_id(liquid_buffer_rid)
+	uniforms.append(liquid_uniform)
 
 	return rd.uniform_set_create(uniforms, shader, 0)
 
@@ -246,5 +256,6 @@ func _free_resources() -> void:
 	if shader.is_valid(): rd.free_rid(shader)
 	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
 	if solid_buffer_rid.is_valid(): rd.free_rid(solid_buffer_rid)
+	if liquid_buffer_rid.is_valid(): rd.free_rid(liquid_buffer_rid)
 
 #endregion

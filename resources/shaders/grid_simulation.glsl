@@ -8,6 +8,7 @@ layout(rg8, set = 0, binding = 1) uniform writeonly image2D terrain_write;
 
 layout(set = 0, binding = 2, std430) buffer ElementData { int data[]; } elements_db;
 layout(set = 0, binding = 3, std430) buffer SolidData { int data[]; } solids_db;
+layout(set = 0, binding = 4, std430) buffer LiquidData { int data[]; } liquid_db; 
 
 layout(push_constant, std430) uniform Params {
     int offset;
@@ -25,10 +26,14 @@ const int WINNER_STRAIGHT = 1;
 const int WINNER_DIAG_LEFT = 2;
 const int WINNER_DIAG_RIGHT = 3;
 
+const int PROP_STRIDE = 6;
+
 shared int s_cache[144];
+shared int s_state_cache[144];
 shared ivec2 s_move[64];
 
 #define CACHE(x, y) s_cache[(y) * 12 + (x)]
+#define STATE_CACHE(x, y) s_state_cache[(y) * 12 + (x)]
 
 uint murmurHash13(uvec3 src) {
     const uint M = 0x5bd1e995u;
@@ -44,43 +49,60 @@ float hash13(vec3 src) {
     return uintBitsToFloat(h & 0x007fffffu | 0x3f800000u) - 1.0;
 }
 
-int loadGlobalElement(ivec2 id, ivec2 size) {
-    if (params.mousePos == id) return 1;
-    if (id.y >= size.y) return 1;
-    if (id.y < 0 || id.x < 0 || id.x >= size.x) return -1;
-    return int(imageLoad(terrain_read, id).r);
+ivec2 loadGlobalData(ivec2 id, ivec2 size) {
+    if (params.mousePos == id) return ivec2(1, 1);
+    if (id.y >= size.y) return ivec2(1, 0);
+    if (id.y < 0 || id.x < 0 || id.x >= size.x) return ivec2(-1, 0);
+    
+    vec4 pixel = imageLoad(terrain_read, id);
+    int idVal = int(pixel.r * 255.0);
+    int stateVal = int(pixel.g * 255.0);
+    return ivec2(idVal, stateVal);
 }
 
 int getSharedElement(ivec2 localPos) {
     return CACHE(localPos.x + 2, localPos.y + 2);
 }
 
-int getElementDensity(int elementId) {
-    if (elementId <= 0) return 0;
-    if (elementId == 1) {
-        return elements_db.data[0];
-    }
-    return 0;
+int getSharedState(ivec2 localPos) {
+    return STATE_CACHE(localPos.x + 2, localPos.y + 2);
 }
 
 ivec2 getDesiredMoveShared(ivec2 localPos, ivec2 globalPos) {
     int currentId = getSharedElement(localPos);
+    int currentState = getSharedState(localPos);
+      
     if (currentId <= 0) return MOVE_NONE;
 
-    int currentDensity = getElementDensity(currentId);
+    int idAbove = getSharedElement(localPos + ivec2(0, -1));
+    int stateAbove = getSharedState(localPos + ivec2(0, -1));
+    
+    if (currentState == 0) {
+        bool disturbed = false;
+        if (idAbove > 0) {
+            int resistance = solids_db.data[(currentId - 1) * PROP_STRIDE + 2];
+            int collapseThreshold = solids_db.data[(currentId - 1) * PROP_STRIDE + 5];
+            if (stateAbove == 1 || resistance <= collapseThreshold) {
+                disturbed = true;
+            }
+        }
+        if (!disturbed) {
+            return MOVE_NONE;
+        }
+    }
 
-    int idBelow      = getSharedElement(localPos + ivec2(0, 1));
-    int idBelowLeft  = getSharedElement(localPos + ivec2(-1, 1));
+    int currentDensity = solids_db.data[(currentId - 1) * PROP_STRIDE + 0];
+
+    int idBelow = getSharedElement(localPos + ivec2(0, 1));
+    int idBelowLeft = getSharedElement(localPos + ivec2(-1, 1));
     int idBelowRight = getSharedElement(localPos + ivec2(1, 1));
 
-    bool canMoveDown = (idBelow == 0) || (currentDensity > getElementDensity(idBelow));
-    bool canLeft     = (idBelowLeft == 0) || (currentDensity > getElementDensity(idBelowLeft));
-    bool canRight    = (idBelowRight == 0) || (currentDensity > getElementDensity(idBelowRight));
+    bool canMoveDown = (idBelow == 0) || (currentDensity > solids_db.data[(idBelow - 1) * PROP_STRIDE + 0]);
+    bool canLeft = (idBelowLeft == 0) || (currentDensity > solids_db.data[(idBelowLeft - 1) * PROP_STRIDE + 0]);
+    bool canRight = (idBelowRight == 0) || (currentDensity > solids_db.data[(idBelowRight - 1) * PROP_STRIDE + 0]);
 
     if (canMoveDown && idBelow != -1) {
-        if (idBelow == 0 || currentDensity > getElementDensity(idBelow)) {
-            return MOVE_DOWN;
-        }
+        return MOVE_DOWN;
     }
 
     if (canLeft && canRight) {
@@ -95,7 +117,7 @@ ivec2 getDesiredMoveShared(ivec2 localPos, ivec2 globalPos) {
     } else if (canRight) {
         return MOVE_RIGHT;
     }
-    
+      
     return MOVE_NONE;
 }
 
@@ -150,7 +172,9 @@ void main() {
     for (int y = lid.y; y < 12; y += 8) {
         for (int x = lid.x; x < 12; x += 8) {
             ivec2 targetGlobal = ivec2(gl_WorkGroupID.xy) * 8 + ivec2(x, y) - ivec2(2);
-            CACHE(x, y) = loadGlobalElement(targetGlobal, size);
+            ivec2 loaded = loadGlobalData(targetGlobal, size);
+            CACHE(x, y) = loaded.x;
+            STATE_CACHE(x, y) = loaded.y;
         }
     }
     barrier();
@@ -162,24 +186,29 @@ void main() {
 
     int currentId = getSharedElement(lid);
     if (currentId < 0) {
-        imageStore(terrain_write, gid, vec4(float(currentId), 0.0, 0.0, 0.0));
+        imageStore(terrain_write, gid, vec4(float(currentId) / 255.0, 0.0, 0.0, 0.0));
         return;
     }
 
     int finalElement = 0;
+    int finalState = 0;
     int winnerType = getWinnerType(lid, gid);
 
     if (winnerType == WINNER_STRAIGHT) {
         finalElement = getSharedElement(lid + ivec2(0, -1));
+        finalState = 1; 
     } else if (winnerType == WINNER_DIAG_LEFT) {
         finalElement = getSharedElement(lid + ivec2(1, -1));
+        finalState = 1;
     } else if (winnerType == WINNER_DIAG_RIGHT) {
         finalElement = getSharedElement(lid + ivec2(-1, -1));
+        finalState = 1;
     } else if (currentId > 0) {
         ivec2 myMove = s_move[lid.y * 8 + lid.x];
         
         if (myMove == MOVE_NONE) {
             finalElement = currentId;
+            finalState = 0; 
         } else {
             ivec2 localTarget = lid + myMove;
             ivec2 globalTarget = gid + myMove;
@@ -193,11 +222,21 @@ void main() {
 
             if (accepted) {
                 finalElement = 0;
+                finalState = 0;
             } else {
+                int friction = solids_db.data[(currentId - 1) * PROP_STRIDE + 3];
+                int energyConservation = solids_db.data[(currentId - 1) * PROP_STRIDE + 4];
+
                 finalElement = currentId;
+                
+                if (friction > energyConservation) {
+                    finalState = 0; 
+                } else {
+                    finalState = 1; 
+                }
             }
         }
     }
 
-    imageStore(terrain_write, gid, vec4(float(finalElement), 0.0, 0.0, 0.0));
+    imageStore(terrain_write, gid, vec4(float(finalElement) / 255.0, float(finalState) / 255.0, 0.0, 0.0));
 }

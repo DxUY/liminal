@@ -6,11 +6,13 @@ var color: Color
 var type: Type
 
 var density: int
+var friction: int
+var energy_conservation: int
 
 enum Type {
 	EMPTY,
 	SOLID,
-	LIQUID, 
+	LIQUID,
 	GAS,
 	PLASMA
 }
