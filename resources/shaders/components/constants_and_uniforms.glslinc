@@ -1,0 +1,40 @@
+// --- Image Bindings ---
+layout(rg8, set = 0, binding = 0) uniform readonly image2D terrain_read;
+layout(rg8, set = 0, binding = 1) uniform writeonly image2D terrain_write;
+
+// --- Structured Buffers ---
+layout(set = 0, binding = 2, std430) buffer ElementData { int data[]; } elements_db;
+layout(set = 0, binding = 3, std430) buffer SolidData { int data[]; } solids_db;
+layout(set = 0, binding = 4, std430) buffer LiquidData { int data[]; } liquid_db; 
+
+// --- Push Constants ---
+layout(push_constant, std430) uniform Params {
+	int offset;
+	float time;
+	ivec2 mousePos;
+} params;
+
+// --- Movement Vectors ---
+const ivec2 MOVE_NONE = ivec2(0, 0);
+const ivec2 MOVE_DOWN = ivec2(0, 1);
+const ivec2 MOVE_LEFT = ivec2(-1, 1);
+const ivec2 MOVE_RIGHT = ivec2(1, 1);
+
+// --- Conflict Resolution Winners ---
+const int WINNER_NONE = 0;
+const int WINNER_STRAIGHT = 1;
+const int WINNER_DIAG_LEFT = 2;
+const int WINNER_DIAG_RIGHT = 3;
+
+// --- Database Property Layout Stride ---
+const int PROP_STRIDE = 6;
+
+// --- Shared Memory Caches ---
+// Workgroup size is 8x8, plus a 2-pixel border for neighbor lookups = 12x12
+shared int s_cache[144];
+shared int s_state_cache[144];
+shared ivec2 s_move[64];
+
+// --- Cache Access Macros ---
+#define CACHE(x, y) s_cache[(y) * 12 + (x)]
+#define STATE_CACHE(x, y) s_state_cache[(y) * 12 + (x)]

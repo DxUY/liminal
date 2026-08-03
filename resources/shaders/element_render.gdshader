@@ -21,12 +21,7 @@ void fragment() {
 	float noise = hash(pixel);
 
 	// Brightness between 92% and 108%.
-	float brightness = mix(
-		1.0 - variation_strength,
-		1.0 + variation_strength,
-		noise
-	);
-
+	float brightness = mix(1.0 - variation_strength, 1.0 + variation_strength, noise);
 	color.rgb *= brightness;
 
 	COLOR = color;

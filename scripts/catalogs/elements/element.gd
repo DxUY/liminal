@@ -14,7 +14,8 @@ enum Type {
 	SOLID,
 	LIQUID,
 	GAS,
-	PLASMA
+	PLASMA,
+	PARTICLE
 }
 
 @abstract func serialize_gpu(data: PackedInt32Array) -> void

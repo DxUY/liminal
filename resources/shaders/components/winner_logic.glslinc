@@ -1,0 +1,44 @@
+// --- Conflict Resolution & Winner Evaluation ---
+
+ivec2 getCachedOrComputedMove(ivec2 localPos, ivec2 globalPos) {
+	if (localPos.x >= 0 && localPos.x < 8 && localPos.y >= 0 && localPos.y < 8) return s_move[localPos.y * 8 + localPos.x];
+    	return getDesiredMoveShared(localPos, globalPos);
+}
+
+int getWinnerType(ivec2 localTarget, ivec2 globalTarget) {
+	ivec2 srcStraight = localTarget + ivec2(0, -1);
+	if (getSharedElement(srcStraight) > 0) {
+		ivec2 move = getCachedOrComputedMove(srcStraight, globalTarget + ivec2(0, -1));
+		if (move == MOVE_DOWN) return WINNER_STRAIGHT;
+	}
+
+	bool prioritizeLeftFirst = ((globalTarget.x + globalTarget.y + params.offset) & 1) == 0;
+
+	if (prioritizeLeftFirst) {
+		ivec2 srcDiagLeft = localTarget + ivec2(1, -1);
+		if (getSharedElement(srcDiagLeft) > 0) {
+			ivec2 move = getCachedOrComputedMove(srcDiagLeft, globalTarget + ivec2(1, -1));
+			if (move == MOVE_LEFT) return WINNER_DIAG_LEFT;
+		}
+        
+		ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
+		if (getSharedElement(srcDiagRight) > 0) {
+			ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
+			if (move == MOVE_RIGHT) return WINNER_DIAG_RIGHT;
+		}
+	} else {
+		ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
+		if (getSharedElement(srcDiagRight) > 0) {
+			ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
+		if (move == MOVE_RIGHT) return WINNER_DIAG_RIGHT;
+		}
+
+		ivec2 srcDiagLeft = localTarget + ivec2(1, -1);
+		if (getSharedElement(srcDiagLeft) > 0) {
+			ivec2 move = getCachedOrComputedMove(srcDiagLeft, globalTarget + ivec2(1, -1));
+			if (move == MOVE_LEFT) return WINNER_DIAG_LEFT;
+		}
+	}
+
+	return WINNER_NONE;
+}

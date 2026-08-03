@@ -22,7 +22,7 @@ extends Node
 const PUSH_CONSTANT_SIZE := 16
 
 ## Compute shader used for the simulation.
-const SHADER_FILE := preload("res://resources/shaders/grid_simulation.glsl")
+const SHADER_FILE := preload("res://resources/shaders/simulation.glsl")
 
 #endregion
 
@@ -100,6 +100,9 @@ func _create_element_gpu_buffers() -> void:
 	element_buffer_rid = rd.storage_buffer_create(element_data.size() * 4, element_data.to_byte_array())
 	solid_buffer_rid = rd.storage_buffer_create(solid_data.size() * 4, solid_data.to_byte_array())
 	liquid_buffer_rid = rd.storage_buffer_create(liquid_data.size() * 4, liquid_data.to_byte_array())
+
+	print("Solid Data Array: ", db["solids"])
+	print("Liquid Data Array: ", db["liquid"])
 
 #endregion
 

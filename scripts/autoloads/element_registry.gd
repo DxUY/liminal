@@ -32,7 +32,7 @@ func build_gpu_databases() -> Dictionary:
 	var liquid_data := PackedInt32Array()
 
 	var solid_index := 0
-	var liquid_index := 1
+	var liquid_index := 0
 
 	for element in _elements.values():
 		if element is Empty:

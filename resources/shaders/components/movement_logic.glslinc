@@ -1,0 +1,53 @@
+// --- Universal Density & Movement Logic ---
+
+int getElementDensity(int elementId) {
+	int type = elements_db.data[(elementId - 1) * 2 + 0];
+	int subIndex = elements_db.data[(elementId - 1) * 2 + 1];
+
+	if (type == 1) return solids_db.data[subIndex * PROP_STRIDE + 0];
+	if (type == 2) return liquid_db.data[subIndex * PROP_STRIDE + 0];
+	return 0;
+}
+
+bool isSolidDisturbed(ivec2 localPos, int currentId, int currentSubIndex, int currentState);
+ivec2 getLiquidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity);
+
+ivec2 getDesiredMoveShared(ivec2 localPos, ivec2 globalPos) {
+	int currentId = getSharedElement(localPos);
+	int currentState = getSharedState(localPos);
+      
+	if (currentId == 0) return MOVE_NONE;
+
+    	int currentType = elements_db.data[(currentId - 1) * 2 + 0];
+    	int currentSubIndex = elements_db.data[(currentId - 1) * 2 + 1];
+
+    	// 1. Check solid stability via behavior registry
+	if (currentType == 1 && !isSolidDisturbed(localPos, currentId, currentSubIndex, currentState)) return MOVE_NONE;
+
+	int currentDensity = getElementDensity(currentId);
+
+	// 2. Universal Density-Based Movement (Down, Down-Left, Down-Right)
+	int idBelow = getSharedElement(localPos + ivec2(0, 1));
+	int idBelowLeft = getSharedElement(localPos + ivec2(-1, 1));
+	int idBelowRight = getSharedElement(localPos + ivec2(1, 1));
+
+	bool canMoveDown = (idBelow == 0) || (currentDensity > getElementDensity(idBelow));
+	bool canLeft = (idBelowLeft == 0) || (currentDensity > getElementDensity(idBelowLeft));
+	bool canRight = (idBelowRight == 0) || (currentDensity > getElementDensity(idBelowRight));
+
+	if (canMoveDown && idBelow != -1) return MOVE_DOWN;
+
+    	if (canLeft && canRight) {
+		float rng = hash13(vec3(globalPos, params.time));
+		bool left = rng > 0.5;
+		if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) left = !left;
+
+		return left ? MOVE_LEFT : MOVE_RIGHT;
+	} else if (canLeft) return MOVE_LEFT;
+	else if (canRight) return MOVE_RIGHT;
+
+    	// 3. If standard gravity movement is completely blocked, check type-specific extra movement (e.g., liquid horizontal flow)
+	if (currentType == 2) return getLiquidExtraMove(localPos, globalPos, currentDensity);
+
+	return MOVE_NONE;
+}

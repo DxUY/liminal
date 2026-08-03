@@ -1,0 +1,46 @@
+// --- Element-Specific / Type-Specific Behaviors ---
+
+// Check if a solid is allowed to move or if it stays stacked/resting
+bool isSolidDisturbed(ivec2 localPos, int currentId, int currentSubIndex, int currentState) {
+	if (currentState != 0) return true; // Already active/falling
+
+	int idAbove = getSharedElement(localPos + ivec2(0, -1));
+	int stateAbove = getSharedState(localPos + ivec2(0, -1));
+
+	if (idAbove > 0) {
+		int resistance = solids_db.data[currentSubIndex * PROP_STRIDE + 2];
+		int collapseThreshold = solids_db.data[currentSubIndex * PROP_STRIDE + 5];
+		if (stateAbove == 1 || resistance <= collapseThreshold) return true;
+	}
+	return false;
+}
+
+// Helper to check how far elements can spread horizontally
+int getSpreadDistance(ivec2 localPos, int currentDensity, int dir, int maxDist, bool isGas) {
+	int validDist = 0;
+	for (int i = 1; i <= maxDist; i++) {
+		ivec2 checkPos = localPos + ivec2(i * dir, isGas ? -1 : 1); // Gases spread if space above/diagonal-up is open, liquids check below
+		ivec2 sidePos = localPos + ivec2(i * dir, 0);
+		
+		int sideId = getSharedElement(sidePos);
+		int verticalCheckId = getSharedElement(checkPos);
+		
+		bool canPassThroughSide = (sideId == 0 || (sideId > 0 && currentDensity > getElementDensity(sideId)));
+		bool canFlowVertically = (verticalCheckId == 0 || (verticalCheckId > 0 && currentDensity > getElementDensity(verticalCheckId)));
+
+		if (canPassThroughSide) {
+			validDist = i;
+			if (canFlowVertically) {
+				break;
+			}
+		} else {
+			break;
+		}
+	}
+	return validDist;
+}
+
+// Specialized behavior for Liquids (adds horizontal flow if standard gravity fails)
+ivec2 getLiquidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity) {
+	return MOVE_NONE;	
+}

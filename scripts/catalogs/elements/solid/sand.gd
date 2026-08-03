@@ -4,8 +4,8 @@ func _init() -> void:
 	super()
 	id = 1
 	name = "Sand"
-	color = Color(1.0, 0.9, 0.4)
-	density = 1
+	color = Color8(255, 230, 102)
+	density = 2
 	hardness = 1
 	inertial_resistance = 1
 	friction = 2

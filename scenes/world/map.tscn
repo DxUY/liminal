@@ -2,10 +2,11 @@
 
 [ext_resource type="Script" uid="uid://by1ejvxrhupnq" path="res://scripts/world/map/simulator.gd" id="1_42n5o"]
 [ext_resource type="Script" uid="uid://dpq3f2gnucwpu" path="res://scripts/world/map/map.gd" id="1_rexne"]
-[ext_resource type="Script" uid="uid://bsjk2aibygc3g" path="res://scripts/world/map/path_generator.gd" id="2_fk7cy"]
+[ext_resource type="Script" uid="uid://bsjk2aibygc3g" path="res://scripts/shared_components/import_component.gd" id="2_fk7cy"]
+[ext_resource type="Script" uid="uid://cdukqb4t1q02u" path="res://scripts/shared_components/element_mapped_component.gd" id="3_fk7cy"]
 [ext_resource type="Texture2D" uid="uid://dw432b3ncik8p" path="res://assets/tiles/map.png" id="3_o4nha"]
-[ext_resource type="Script" uid="uid://condytjr7043d" path="res://scripts/world/map/map_texture_rect.gd" id="5_o4nha"]
 [ext_resource type="Shader" uid="uid://crgvmpjvh07jm" path="res://resources/shaders/element_render.gdshader" id="6_o4nha"]
+[ext_resource type="Script" uid="uid://dwyapoa2krx8r" path="res://scripts/world/map/map_texture_rect.gd" id="7_o4nha"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fk7cy"]
 shader = ExtResource("6_o4nha")
@@ -19,16 +20,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_rexne")
+map = ExtResource("3_o4nha")
 
-[node name="PathGenerator" type="Node" parent="." unique_id=1119387893]
+[node name="ImportComponent" type="Node" parent="." unique_id=705207713]
 unique_name_in_owner = true
 script = ExtResource("2_fk7cy")
-map = ExtResource("3_o4nha")
+metadata/_custom_type_script = "uid://bsjk2aibygc3g"
+
+[node name="ElementMappedComponent" type="Node" parent="." unique_id=1549203659]
+unique_name_in_owner = true
+script = ExtResource("3_fk7cy")
+metadata/_custom_type_script = "uid://cdukqb4t1q02u"
 
 [node name="Simulator" type="Node" parent="." unique_id=1159196250 node_paths=PackedStringArray("texture_rect")]
 unique_name_in_owner = true
 script = ExtResource("1_42n5o")
 texture_rect = NodePath("../MapTextureRect")
+height = 100
 
 [node name="MapTextureRect" type="TextureRect" parent="." unique_id=2033687256]
 unique_name_in_owner = true
@@ -41,4 +49,4 @@ grow_horizontal = 2
 grow_vertical = 2
 expand_mode = 2
 stretch_mode = 5
-script = ExtResource("5_o4nha")
+script = ExtResource("7_o4nha")

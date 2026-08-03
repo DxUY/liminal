@@ -4,10 +4,11 @@ func _init() -> void:
 	super()
 	id = 2
 	name = "Water"
-	color = Color(0.2, 0.5, 1.0)
-	density = 0
+	color = Color8(51, 128, 255)
+	density = 1
 	viscosity = 1
 	dispersion_rate = 4
+	surface_tension = 1 
 	friction = 1
 	energy_conservation = 8
 

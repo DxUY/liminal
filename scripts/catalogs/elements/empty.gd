@@ -8,3 +8,6 @@ func _init() -> void:
 
 func serialize_gpu(data: PackedInt32Array) -> void:
 	data.push_back(density)
+
+func step(grid, position: Vector2i) -> void:
+	return
