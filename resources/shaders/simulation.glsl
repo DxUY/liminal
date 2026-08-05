@@ -51,12 +51,32 @@ void main() {
 	} else if (winnerType == WINNER_DIAG_RIGHT) {
 		finalElement = getSharedElement(lid + ivec2(-1, -1));
 		finalState = 1;
-	} else if (winnerType == WINNER_HORIZ_LEFT) {
-		finalElement = getSharedElement(lid + ivec2(1, 0));
-		finalState = 1;
-	} else if (winnerType == WINNER_HORIZ_RIGHT) {
-		finalElement = getSharedElement(lid + ivec2(-1, 0));
-		finalState = 1;
+	} else if (winnerType == WINNER_HORIZ) {
+		ivec2 srcRight = lid + ivec2(1, 0);
+		ivec2 srcLeft = lid + ivec2(-1, 0);
+
+		bool rightValid = (getSharedElement(srcRight) > 0) && (getCachedOrComputedMove(srcRight, gid + ivec2(1, 0)) == ivec2(-1, 0));
+		bool leftValid = (getSharedElement(srcLeft) > 0) && (getCachedOrComputedMove(srcLeft, gid + ivec2(-1, 0)) == ivec2(1, 0));
+
+		bool prioritizeLeftFirst = ((gid.x + gid.y + params.offset) & 1) == 0;
+
+		if (prioritizeLeftFirst) {
+			if (leftValid) {
+				finalElement = getSharedElement(srcLeft);
+				finalState = 1;
+			} else if (rightValid) {
+				finalElement = getSharedElement(srcRight);
+				finalState = 1;
+			}
+		} else {
+			if (rightValid) {
+				finalElement = getSharedElement(srcRight);
+				finalState = 1;
+			} else if (leftValid) {
+				finalElement = getSharedElement(srcLeft);
+				finalState = 1;
+			}
+		}
 	} else if (currentId > 0) {
 		ivec2 myMove = s_move[lid.y * 8 + lid.x];
         
@@ -74,8 +94,30 @@ void main() {
 			if (myMove == MOVE_DOWN && targetWinner == WINNER_STRAIGHT) accepted = true;
 			if (myMove == MOVE_DIAG_LEFT && targetWinner == WINNER_DIAG_LEFT) accepted = true;
 			if (myMove == MOVE_DIAG_RIGHT && targetWinner == WINNER_DIAG_RIGHT) accepted = true;
-			if (myMove == MOVE_HORIZ_LEFT && targetWinner == WINNER_HORIZ_LEFT) accepted = true;
-			if (myMove == MOVE_HORIZ_RIGHT && targetWinner == WINNER_HORIZ_RIGHT) accepted = true;
+			
+			// Fix: Verify exact direction match at globalTarget to prevent losing movers from vanishing
+			if (targetWinner == WINNER_HORIZ) {
+				bool prioritizeLeftFirstAtTarget = ((globalTarget.x + globalTarget.y + params.offset) & 1) == 0;
+				ivec2 srcRight = localTarget + ivec2(1, 0);
+				ivec2 srcLeft = localTarget + ivec2(-1, 0);
+
+				bool rightValid = (getSharedElement(srcRight) > 0) && (getCachedOrComputedMove(srcRight, globalTarget + ivec2(1, 0)) == ivec2(-1, 0));
+				bool leftValid = (getSharedElement(srcLeft) > 0) && (getCachedOrComputedMove(srcLeft, globalTarget + ivec2(-1, 0)) == ivec2(1, 0));
+
+				if (myMove == ivec2(1, 0)) { // I am trying to move right into target from target's left
+					if (prioritizeLeftFirstAtTarget) {
+						if (leftValid) accepted = true;
+					} else {
+						if (leftValid && !rightValid) accepted = true;
+					}
+				} else if (myMove == ivec2(-1, 0)) { // I am trying to move left into target from target's right
+					if (!prioritizeLeftFirstAtTarget) {
+						if (rightValid) accepted = true;
+					} else {
+						if (rightValid && !leftValid) accepted = true;
+					}
+				}
+			}
 
 			if (accepted) {
 				finalElement = 0;
@@ -88,20 +130,20 @@ void main() {
 				int energyConservation = 0;
 
 				if (currentType == 1) {
-    					friction = solids_db.data[currentSubIndex * PROP_STRIDE + 3];
+					friction = solids_db.data[currentSubIndex * PROP_STRIDE + 3];
 					energyConservation = solids_db.data[currentSubIndex * PROP_STRIDE + 4];
 				} else if (currentType == 2) {
 					friction = liquid_db.data[currentSubIndex * PROP_STRIDE + 3];
-    					energyConservation = liquid_db.data[currentSubIndex * PROP_STRIDE + 4];
+					energyConservation = liquid_db.data[currentSubIndex * PROP_STRIDE + 4];
 				}
 
 				finalElement = currentId;
                 
 				if (friction > energyConservation) finalState = 0; 
 				else finalState = 1; 
-                	}
-            	}
-    	}
+			}
+		}
+	}
 
 	imageStore(terrain_write, gid, vec4(float(finalElement) / 255.0, float(finalState) / 255.0, 0.0, 0.0));
 }

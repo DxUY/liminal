@@ -2,7 +2,7 @@
 
 ivec2 getCachedOrComputedMove(ivec2 localPos, ivec2 globalPos) {
 	if (localPos.x >= 0 && localPos.x < 8 && localPos.y >= 0 && localPos.y < 8) return s_move[localPos.y * 8 + localPos.x];
-    	return getDesiredMoveShared(localPos, globalPos);
+	return getDesiredMoveShared(localPos, globalPos);
 }
 
 int getWinnerType(ivec2 localTarget, ivec2 globalTarget) {
@@ -21,14 +21,14 @@ int getWinnerType(ivec2 localTarget, ivec2 globalTarget) {
 		if (getSharedElement(srcDiagLeft) > 0) {
 			ivec2 move = getCachedOrComputedMove(srcDiagLeft, globalTarget + ivec2(1, -1));
 			if (move == MOVE_DIAG_LEFT) return WINNER_DIAG_LEFT;
-        	}
+		}
         
 		ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
-        	if (getSharedElement(srcDiagRight) > 0) {
-            		ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
+		if (getSharedElement(srcDiagRight) > 0) {
+			ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
 			if (move == MOVE_DIAG_RIGHT) return WINNER_DIAG_RIGHT;
 		}
-    	} else {
+	} else {
 		ivec2 srcDiagRight = localTarget + ivec2(-1, -1);
 		if (getSharedElement(srcDiagRight) > 0) {
 			ivec2 move = getCachedOrComputedMove(srcDiagRight, globalTarget + ivec2(-1, -1));
@@ -43,16 +43,16 @@ int getWinnerType(ivec2 localTarget, ivec2 globalTarget) {
 	}
 
 	// 3. Horizontal Dispersion (Lowest Priority)
-	ivec2 srcHorizLeft = localTarget + ivec2(1, 0); // Element to the right moving left
-	if (getSharedElement(srcHorizLeft) > 0) {
-		ivec2 move = getCachedOrComputedMove(srcHorizLeft, globalTarget + ivec2(1, 0));
-		if (move == MOVE_HORIZ_LEFT) return WINNER_HORIZ_LEFT;
-	}
+	ivec2 srcHorizLeft = localTarget + ivec2(1, 0);  // Element to the right moving left (-1, 0)
+	ivec2 srcHorizRight = localTarget + ivec2(-1, 0); // Element to the left moving right (1, 0)
 
-	ivec2 srcHorizRight = localTarget + ivec2(-1, 0); // Element to the left moving right
-	if (getSharedElement(srcHorizRight) > 0) {
-		ivec2 move = getCachedOrComputedMove(srcHorizRight, globalTarget + ivec2(-1, 0));
-		if (move == MOVE_HORIZ_RIGHT) return WINNER_HORIZ_RIGHT;
+	bool rightWantsIn = (getSharedElement(srcHorizLeft) > 0) && (getCachedOrComputedMove(srcHorizLeft, globalTarget + ivec2(1, 0)) == ivec2(-1, 0));
+	bool leftWantsIn = (getSharedElement(srcHorizRight) > 0) && (getCachedOrComputedMove(srcHorizRight, globalTarget + ivec2(-1, 0)) == ivec2(1, 0));
+
+	if (prioritizeLeftFirst) {
+		if (leftWantsIn || rightWantsIn) return WINNER_HORIZ;
+	} else {
+		if (rightWantsIn || leftWantsIn) return WINNER_HORIZ;
 	}
 
 	return WINNER_NONE;
