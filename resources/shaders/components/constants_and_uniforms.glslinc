@@ -17,14 +17,15 @@ layout(push_constant, std430) uniform Params {
 // --- Movement Vectors ---
 const ivec2 MOVE_NONE = ivec2(0, 0);
 const ivec2 MOVE_DOWN = ivec2(0, 1);
-const ivec2 MOVE_LEFT = ivec2(-1, 1);
-const ivec2 MOVE_RIGHT = ivec2(1, 1);
+const ivec2 MOVE_DIAG_LEFT = ivec2(-1, 1);
+const ivec2 MOVE_DIAG_RIGHT = ivec2(1, 1);
 
 // --- Conflict Resolution Winners ---
 const int WINNER_NONE = 0;
 const int WINNER_STRAIGHT = 1;
 const int WINNER_DIAG_LEFT = 2;
 const int WINNER_DIAG_RIGHT = 3;
+const int WINNER_HORIZ = 4;
 
 // --- Database Property Layout Stride ---
 const int PROP_STRIDE = 6;

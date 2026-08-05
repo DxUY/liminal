@@ -34,12 +34,18 @@ func build_gpu_databases() -> Dictionary:
 	var solid_index := 0
 	var liquid_index := 0
 
-	for element in _elements.values():
-		if element is Empty:
-			element_data.push_back(Element.Type.EMPTY)
-			element_data.push_back(0)
+	# Get all element IDs and sort them (1, 2, 3...)
+	var keys := _elements.keys()
+	keys.sort()
 
-		elif element is Solid:
+	for id in keys:
+		var element: Element = _elements[id]
+		
+		# Skip Empty (ID 0) so element ID 1 maps to index 0 in element_data!
+		if element is Empty or id == 0:
+			continue
+
+		if element is Solid:
 			element_data.push_back(Element.Type.SOLID)
 			element_data.push_back(solid_index)
 

@@ -8,9 +8,9 @@ func _init() -> void:
 	type = Type.LIQUID
 
 func serialize_gpu(data: PackedInt32Array) -> void:
-	data.push_back(density)
-	data.push_back(viscosity)
-	data.push_back(dispersion_rate)
-	data.push_back(surface_tension)
-	data.push_back(friction)
-	data.push_back(energy_conservation)
+	data.append(density)
+	data.append(viscosity)
+	data.append(dispersion_rate)
+	data.append(friction)
+	data.append(energy_conservation)
+	data.append(surface_tension)

@@ -36,7 +36,6 @@ metadata/_custom_type_script = "uid://cdukqb4t1q02u"
 unique_name_in_owner = true
 script = ExtResource("1_42n5o")
 texture_rect = NodePath("../MapTextureRect")
-height = 100
 
 [node name="MapTextureRect" type="TextureRect" parent="." unique_id=2033687256]
 unique_name_in_owner = true

@@ -7,7 +7,7 @@ func _init() -> void:
 	color = Color8(51, 128, 255)
 	density = 1
 	viscosity = 1
-	dispersion_rate = 4
+	dispersion_rate = 5
 	surface_tension = 1 
 	friction = 1
 	energy_conservation = 8

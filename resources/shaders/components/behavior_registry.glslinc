@@ -15,13 +15,48 @@ bool isSolidDisturbed(ivec2 localPos, int currentId, int currentSubIndex, int cu
 	return false;
 }
 
-// Helper to check how far elements can spread horizontally
+// Solid extra move: Sand / Powders fall DIAGONALLY when blocked straight down
+ivec2 getSolidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity) {
+	int idLeft = getSharedElement(localPos + ivec2(-1, 0));
+	int idRight = getSharedElement(localPos + ivec2(1, 0));
+	int idBelowLeft = getSharedElement(localPos + ivec2(-1, 1));
+	int idBelowRight = getSharedElement(localPos + ivec2(1, 1));
+
+	// Make sure both side neighbor AND diagonal space are passable
+	bool canPassLeft = (idLeft == 0) || (currentDensity > getElementDensity(idLeft));
+	bool canPassRight = (idRight == 0) || (currentDensity > getElementDensity(idRight));
+
+	bool canDiagLeft = canPassLeft && ((idBelowLeft == 0) || (currentDensity > getElementDensity(idBelowLeft)));
+	bool canDiagRight = canPassRight && ((idBelowRight == 0) || (currentDensity > getElementDensity(idBelowRight)));
+
+	if (canDiagLeft && canDiagRight) {
+		float rng = hash13(vec3(globalPos, params.time));
+		bool left = rng > 0.5;
+		if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) left = !left;
+
+		return left ? MOVE_DIAG_LEFT : MOVE_DIAG_RIGHT;
+	} else if (canDiagLeft) {
+		return MOVE_DIAG_LEFT;
+	} else if (canDiagRight) {
+		return MOVE_DIAG_RIGHT;
+	}
+
+	return MOVE_NONE;
+}
+
+// Helper to check how far liquids/gases can spread horizontally
 int getSpreadDistance(ivec2 localPos, int currentDensity, int dir, int maxDist, bool isGas) {
 	int validDist = 0;
 	for (int i = 1; i <= maxDist; i++) {
-		ivec2 checkPos = localPos + ivec2(i * dir, isGas ? -1 : 1); // Gases spread if space above/diagonal-up is open, liquids check below
 		ivec2 sidePos = localPos + ivec2(i * dir, 0);
+		ivec2 checkPos = localPos + ivec2(i * dir, isGas ? -1 : 1);
 		
+		// Guard against shared memory cache bounds
+		if (sidePos.x < -2 || sidePos.x > 9 || sidePos.y < -2 || sidePos.y > 9 ||
+		    checkPos.x < -2 || checkPos.x > 9 || checkPos.y < -2 || checkPos.y > 9) {
+			break;
+		}
+
 		int sideId = getSharedElement(sidePos);
 		int verticalCheckId = getSharedElement(checkPos);
 		
@@ -30,6 +65,7 @@ int getSpreadDistance(ivec2 localPos, int currentDensity, int dir, int maxDist, 
 
 		if (canPassThroughSide) {
 			validDist = i;
+			// Stop scanning if an opening below is found
 			if (canFlowVertically) {
 				break;
 			}
@@ -40,7 +76,29 @@ int getSpreadDistance(ivec2 localPos, int currentDensity, int dir, int maxDist, 
 	return validDist;
 }
 
-// Specialized behavior for Liquids (adds horizontal flow if standard gravity fails)
+// Liquid extra move: Liquids flow HORIZONTALLY when blocked straight down
 ivec2 getLiquidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity) {
-	return MOVE_NONE;	
+	int currentId = getSharedElement(localPos);
+	if (currentId <= 0) return MOVE_NONE;
+
+	int subIndex = elements_db.data[(currentId - 1) * 2 + 1];
+	int dispersionRate = liquid_db.data[subIndex * PROP_STRIDE + 2];
+
+	if (dispersionRate <= 0) return MOVE_NONE;
+
+	int leftDist = getSpreadDistance(localPos, currentDensity, -1, dispersionRate, false);
+	int rightDist = getSpreadDistance(localPos, currentDensity, 1, dispersionRate, false);
+
+	if (leftDist == 0 && rightDist == 0) return MOVE_NONE;
+
+	bool goLeft = false;
+	if (leftDist > 0 && rightDist > 0) {
+		float rng = hash13(vec3(globalPos, params.time));
+		goLeft = rng > 0.5;
+		if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) goLeft = !goLeft;
+	} else {
+		goLeft = (leftDist > 0);
+	}
+
+	return goLeft ? MOVE_HORIZ_LEFT : MOVE_HORIZ_RIGHT;
 }

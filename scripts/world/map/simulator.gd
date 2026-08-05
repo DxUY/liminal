@@ -55,6 +55,7 @@ var palette_texture: ImageTexture
 #region Runtime State
 
 var elapsed := 0.0
+var frame_counter := 0
 var texture_dirty := false
 var timestamp_queued := true
 
@@ -67,6 +68,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_texture_if_needed()
+	frame_counter += 1
 	_dispatch_simulation(delta)
 
 func _exit_tree() -> void:
@@ -116,7 +118,8 @@ func _dispatch_simulation(delta: float) -> void:
 	# Select which uniform set to use based on the ping-pong frame toggle
 	var active_uniform_set = uniform_set_a if not frame_toggle else uniform_set_b
 
-	var pc := _create_push_constants(0, elapsed, mouse)
+	# Pass frame_counter as offset so shader parity alternates every frame
+	var pc := _create_push_constants(frame_counter, elapsed, mouse)
 
 	var list := rd.compute_list_begin()
 	rd.compute_list_bind_compute_pipeline(list, pipeline)
@@ -211,7 +214,7 @@ func _create_ping_pong_uniform_set(read_tex: RID, write_tex: RID) -> RID:
 	solid_uniform.add_id(solid_buffer_rid)
 	uniforms.append(solid_uniform)
 	
-	# Binding 4: Liquid Propertoes Buffer
+	# Binding 4: Liquid Properties Buffer
 	var liquid_uniform := RDUniform.new()
 	liquid_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
 	liquid_uniform.binding = 4

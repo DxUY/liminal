@@ -51,6 +51,12 @@ void main() {
 	} else if (winnerType == WINNER_DIAG_RIGHT) {
 		finalElement = getSharedElement(lid + ivec2(-1, -1));
 		finalState = 1;
+	} else if (winnerType == WINNER_HORIZ_LEFT) {
+		finalElement = getSharedElement(lid + ivec2(1, 0));
+		finalState = 1;
+	} else if (winnerType == WINNER_HORIZ_RIGHT) {
+		finalElement = getSharedElement(lid + ivec2(-1, 0));
+		finalState = 1;
 	} else if (currentId > 0) {
 		ivec2 myMove = s_move[lid.y * 8 + lid.x];
         
@@ -66,8 +72,10 @@ void main() {
 			bool accepted = false;
 			
 			if (myMove == MOVE_DOWN && targetWinner == WINNER_STRAIGHT) accepted = true;
-			if (myMove == MOVE_LEFT && targetWinner == WINNER_DIAG_LEFT) accepted = true;
-			if (myMove == MOVE_RIGHT && targetWinner == WINNER_DIAG_RIGHT) accepted = true;
+			if (myMove == MOVE_DIAG_LEFT && targetWinner == WINNER_DIAG_LEFT) accepted = true;
+			if (myMove == MOVE_DIAG_RIGHT && targetWinner == WINNER_DIAG_RIGHT) accepted = true;
+			if (myMove == MOVE_HORIZ_LEFT && targetWinner == WINNER_HORIZ_LEFT) accepted = true;
+			if (myMove == MOVE_HORIZ_RIGHT && targetWinner == WINNER_HORIZ_RIGHT) accepted = true;
 
 			if (accepted) {
 				finalElement = 0;
