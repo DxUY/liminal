@@ -1,52 +1,103 @@
-// --- Universal Density & Movement Logic ---
+// --- Helper Movement Checks ---
 
-int getElementDensity(int elementId) {
-	if (elementId <= 0) return (elementId < 0) ? 999999 : 0;
+ivec2 calculateDiagonalMove(ivec2 localPos, ivec2 globalPos, ElementProperties current) {
+	ivec2 gravVec = ivec2(0, current.gravity_dir);
+	ivec2 leftDiag = gravVec + ivec2(-1, 0);
+	ivec2 rightDiag = gravVec + ivec2(1, 0);
 
-	int type = elements_db.data[(elementId - 1) * 2 + 0];
-	int subIndex = elements_db.data[(elementId - 1) * 2 + 1];
+	int targetLeft = getSharedElement(localPos + leftDiag);
+	int targetRight = getSharedElement(localPos + rightDiag);
 
-	if (type == 1) return solids_db.data[subIndex * PROP_STRIDE + 0];
-	if (type == 2) return liquid_db.data[subIndex * PROP_STRIDE + 0];
-	return 0;
+	bool canLeft = (targetLeft == 0) || (targetLeft > 0 && current.density > element_db.props[targetLeft - 1].density);
+	bool canRight = (targetRight == 0) || (targetRight > 0 && current.density > element_db.props[targetRight - 1].density);
+
+	if (canLeft && canRight) {
+		float rng = hash13(vec3(globalPos, params.time));
+		bool goLeft = rng > 0.5;
+		if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) goLeft = !goLeft;
+		return goLeft ? leftDiag : rightDiag;
+	} else if (canLeft) {
+		return leftDiag;
+	} else if (canRight) {
+		return rightDiag;
+	}
+
+	return ivec2(0, 0);
 }
 
-bool isSolidDisturbed(ivec2 localPos, int currentId, int currentSubIndex, int currentState);
-ivec2 getSolidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity);
-ivec2 getLiquidExtraMove(ivec2 localPos, ivec2 globalPos, int currentDensity);
+ivec2 calculateHorizontalSpread(ivec2 localPos, ivec2 globalPos, ElementProperties current) {
+	if (current.dispersion_rate <= 0) return ivec2(0, 0);
 
-ivec2 getDesiredMoveShared(ivec2 localPos, ivec2 globalPos) {
-	int currentId = getSharedElement(localPos);
-	int currentState = getSharedState(localPos);
-      
-	if (currentId <= 0) return MOVE_NONE;
+	int leftDist = 0;
+	int rightDist = 0;
 
-	int currentType = elements_db.data[(currentId - 1) * 2 + 0];
-	int currentSubIndex = elements_db.data[(currentId - 1) * 2 + 1];
-
-	// 1. Check solid stability (resting vs active)
-	if (currentType == 1 && !isSolidDisturbed(localPos, currentId, currentSubIndex, currentState)) {
-		return MOVE_NONE;
+	// Check Left Spread
+	for (int i = 1; i <= current.dispersion_rate; i++) {
+		ivec2 sidePos = localPos + ivec2(-i, 0);
+		int sideId = getSharedElement(sidePos);
+		if (sideId == 0) { leftDist = i; } 
+		else break;
 	}
 
-	int currentDensity = getElementDensity(currentId);
-
-	// 2. Universal Gravity: Try to fall directly down
-	int idBelow = getSharedElement(localPos + ivec2(0, 1));
-	bool canMoveDown = (idBelow == 0) || (currentDensity > getElementDensity(idBelow));
-
-	if (canMoveDown && idBelow != -1) {
-		return MOVE_DOWN;
+	// Check Right Spread
+	for (int i = 1; i <= current.dispersion_rate; i++) {
+		ivec2 sidePos = localPos + ivec2(i, 0);
+		int sideId = getSharedElement(sidePos);
+		if (sideId == 0) { rightDist = i; } 
+		else break;
 	}
 
-	// 3. Defer secondary movement entirely to type-specific behaviors
-	if (currentType == 1) {
-		// Solids handle diagonal falling (sand pyramid angle)
-		return getSolidExtraMove(localPos, globalPos, currentDensity);
-	} else if (currentType == 2) {
-		// Liquids handle horizontal spreading (leveling out)
-		return getLiquidExtraMove(localPos, globalPos, currentDensity);
+	if (leftDist == 0 && rightDist == 0) return ivec2(0, 0);
+
+	bool goLeft = false;
+	if (leftDist > 0 && rightDist > 0) {
+		float rng = hash13(vec3(globalPos, params.time));
+		goLeft = rng > 0.5;
+		if (((globalPos.x + globalPos.y + params.offset) & 1) != 0) goLeft = !goLeft;
+	} else {
+		goLeft = (leftDist > 0);
 	}
 
-	return MOVE_NONE;
+	return goLeft ? ivec2(-1, 0) : ivec2(1, 0);
+}
+
+// --- Main Element Movement Evaluator ---
+
+ivec2 calculateDesiredMove(ivec2 localPos, ivec2 globalPos) {
+	int id = getSharedElement(localPos);
+	if (id <= 0) return ivec2(0, 0);
+
+	// Single SSBO lookup for any element
+	ElementProperties current = element_db.props[id - 1];
+	ivec2 currentVel = ivec2(current.vel_x, current.vel_y);
+
+	// 1. Explicit Velocity Impulse Check
+	if (currentVel != ivec2(0, 0)) {
+		ivec2 velMove = clamp(currentVel, ivec2(-1, -1), ivec2(1, 1));
+		int targetId = getSharedElement(localPos + velMove);
+		if (targetId == 0 || (targetId > 0 && current.density > element_db.props[targetId - 1].density)) {
+			return velMove;
+		}
+	}
+
+	// 2. Default Vertical Step (Gravity or Buoyancy)
+	ivec2 gravVec = ivec2(0, current.gravity_dir);
+	int targetId = getSharedElement(localPos + gravVec);
+	if (targetId != -1) {
+		int targetDensity = (targetId > 0) ? element_db.props[targetId - 1].density : 0;
+		if (targetId == 0 || current.density > targetDensity) {
+			return gravVec;
+		}
+	}
+
+	// 3. Diagonal Slide Check (Powders, Sand, Rising Smoke)
+	ivec2 diagMove = calculateDiagonalMove(localPos, globalPos, current);
+	if (diagMove != ivec2(0, 0)) return diagMove;
+
+	// 4. Horizontal Spread Check (Liquids, Gases)
+	if (current.dispersion_rate > 0) {
+		return calculateHorizontalSpread(localPos, globalPos, current);
+	}
+
+	return ivec2(0, 0);
 }

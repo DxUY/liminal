@@ -25,45 +25,24 @@ func has_element(id: int) -> bool:
 func get_all() -> Dictionary[int, Element]:
 	return _elements
 
-## Builds the CPU-side GPU databases used by the compute shader.
-func build_gpu_databases() -> Dictionary:
-	var element_data := PackedInt32Array()
-	var solid_data := PackedInt32Array()
-	var liquid_data := PackedInt32Array()
+## Builds the single CPU-side GPU database used by the compute shader.
+func build_gpu_databases() -> PackedInt32Array:
+	var gpu_database := PackedInt32Array()
 
-	var solid_index := 0
-	var liquid_index := 0
-
-	# Get all element IDs and sort them (1, 2, 3...)
 	var keys := _elements.keys()
 	keys.sort()
 
 	for id in keys:
 		var element: Element = _elements[id]
 		
-		# Skip Empty (ID 0) so element ID 1 maps to index 0 in element_data!
+		# Skip Empty (ID 0) so element ID 1 maps to index 0 in the SSBO array
 		if element is Empty or id == 0:
 			continue
 
-		if element is Solid:
-			element_data.push_back(Element.Type.SOLID)
-			element_data.push_back(solid_index)
+		# Appends the uniform 9-integer block directly for each element
+		element.serialize_gpu(gpu_database)
 
-			element.serialize_gpu(solid_data)
-			solid_index += 1
-
-		elif element is Liquid:
-			element_data.push_back(Element.Type.LIQUID)
-			element_data.push_back(liquid_index)
-
-			element.serialize_gpu(liquid_data)
-			liquid_index += 1
-
-	return {
-		"elements": element_data,
-		"solids": solid_data,
-		"liquid": liquid_data
-	}
+	return gpu_database
 
 ## Gather the rgba values of elements and put it inside a 1D image
 func build_color_palette() -> Image:

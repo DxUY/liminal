@@ -40,9 +40,8 @@ var uniform_set_a: RID # Reads A, Writes B
 var uniform_set_b: RID # Reads B, Writes A
 var frame_toggle := false
 
+# Unified SSBO for all elements
 var element_buffer_rid: RID
-var solid_buffer_rid: RID
-var liquid_buffer_rid: RID
 
 #endregion
 
@@ -57,7 +56,6 @@ var palette_texture: ImageTexture
 var elapsed := 0.0
 var frame_counter := 0
 var texture_dirty := false
-var timestamp_queued := true
 
 #endregion
 
@@ -91,20 +89,10 @@ func _initialize_rendering() -> void:
 	_recreate_texture()
 	pipeline = rd.compute_pipeline_create(shader)
 
-## Creates storage buffers for elements and solids using data from ElementRegistry
+## Creates the single unified element storage buffer using data from ElementRegistry
 func _create_element_gpu_buffers() -> void:
-	var db := ElementRegistry.build_gpu_databases()
-	
-	var element_data: PackedInt32Array = db["elements"]
-	var solid_data: PackedInt32Array = db["solids"]
-	var liquid_data: PackedInt32Array = db["liquid"]
-	
-	element_buffer_rid = rd.storage_buffer_create(element_data.size() * 4, element_data.to_byte_array())
-	solid_buffer_rid = rd.storage_buffer_create(solid_data.size() * 4, solid_data.to_byte_array())
-	liquid_buffer_rid = rd.storage_buffer_create(liquid_data.size() * 4, liquid_data.to_byte_array())
-
-	print("Solid Data Array: ", db["solids"])
-	print("Liquid Data Array: ", db["liquid"])
+	var gpu_data: PackedInt32Array = ElementRegistry.build_gpu_databases()
+	element_buffer_rid = rd.storage_buffer_create(gpu_data.size() * 4, gpu_data.to_byte_array())
 
 #endregion
 
@@ -115,10 +103,7 @@ func _dispatch_simulation(delta: float) -> void:
 	var mouse := texture_rect.get_mouse_texel()
 	var groups := _get_dispatch_groups()
 
-	# Select which uniform set to use based on the ping-pong frame toggle
 	var active_uniform_set = uniform_set_a if not frame_toggle else uniform_set_b
-
-	# Pass frame_counter as offset so shader parity alternates every frame
 	var pc := _create_push_constants(frame_counter, elapsed, mouse)
 
 	var list := rd.compute_list_begin()
@@ -128,7 +113,6 @@ func _dispatch_simulation(delta: float) -> void:
 	rd.compute_list_dispatch(list, groups.x, groups.y, 1)
 	rd.compute_list_end()
 
-	# Swap which texture is displayed on screen
 	var wrapper := texture_rect.texture as Texture2DRD
 	wrapper.texture_rd_rid = texture_rid_b if not frame_toggle else texture_rid_a
 
@@ -200,26 +184,12 @@ func _create_ping_pong_uniform_set(read_tex: RID, write_tex: RID) -> RID:
 	write_uniform.add_id(write_tex)
 	uniforms.append(write_uniform)
 
-	# Binding 2: Element Database Buffer
+	# Binding 2: Unified Element Database Buffer
 	var elem_uniform := RDUniform.new()
 	elem_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
 	elem_uniform.binding = 2
 	elem_uniform.add_id(element_buffer_rid)
 	uniforms.append(elem_uniform)
-
-	# Binding 3: Solid Properties Buffer
-	var solid_uniform := RDUniform.new()
-	solid_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	solid_uniform.binding = 3
-	solid_uniform.add_id(solid_buffer_rid)
-	uniforms.append(solid_uniform)
-	
-	# Binding 4: Liquid Properties Buffer
-	var liquid_uniform := RDUniform.new()
-	liquid_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	liquid_uniform.binding = 4
-	liquid_uniform.add_id(liquid_buffer_rid)
-	uniforms.append(liquid_uniform)
 
 	return rd.uniform_set_create(uniforms, shader, 0)
 
@@ -227,10 +197,8 @@ func _create_ping_pong_uniform_set(read_tex: RID, write_tex: RID) -> RID:
 
 #region Push Constants
 
-## Creates the push constant block for one simulation pass.
 func _create_push_constants(pass_index: int, time: float, mouse: Vector2i) -> PackedByteArray:
 	var pc := PackedByteArray()
-
 	pc.resize(PUSH_CONSTANT_SIZE)
 
 	pc.encode_s32(0, pass_index)
@@ -261,7 +229,5 @@ func _free_resources() -> void:
 	if texture_rid_b.is_valid(): rd.free_rid(texture_rid_b)
 	if shader.is_valid(): rd.free_rid(shader)
 	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
-	if solid_buffer_rid.is_valid(): rd.free_rid(solid_buffer_rid)
-	if liquid_buffer_rid.is_valid(): rd.free_rid(liquid_buffer_rid)
 
 #endregion

@@ -1,16 +1,15 @@
-class_name Water extends Liquid
+# water.gd
+class_name Water extends Element
 
 func _init() -> void:
-	super()
 	id = 2
 	name = "Water"
 	color = Color8(51, 128, 255)
+	type = Type.LIQUID
+	
 	density = 1
-	viscosity = 1
+	gravity_dir = 1
+	velocity = Vector2i(0, 1)
 	dispersion_rate = 5
-	surface_tension = 1 
+	viscosity = 1
 	friction = 1
-	energy_conservation = 8
-
-func serialize_gpu(data: PackedInt32Array) -> void:
-	super(data)
