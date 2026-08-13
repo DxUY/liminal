@@ -8,11 +8,9 @@ func _input(event: InputEvent) -> void:
 		_previous = _position
 		_position = event.position
 
-func get_mouse_position() -> Vector2:
-	return _position
-
-func get_previous_mouse_position() -> Vector2:
-	return _previous
-
-func get_mouse_delta() -> Vector2:
-	return _position - _previous
+func get_mouse_state() -> Dictionary:
+	return {
+		"position": _position,
+		"previous": _previous,
+		"delta": _position - _previous
+	}

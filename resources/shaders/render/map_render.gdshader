@@ -8,19 +8,15 @@ float hash(vec2 p) {
 }
 
 void fragment() {
-	// Read element ID from the R8 texture.
 	float value = texture(TEXTURE, UV).r;
 	int id = int(round(value * 255.0));
 
-	// Look up the base color.
 	float palette_u = (float(id) + 0.5) / float(textureSize(palette, 0).x);
 	vec4 color = texture(palette, vec2(palette_u, 0.5));
 
-	// Generate deterministic noise per simulation pixel.
 	vec2 pixel = floor(UV * vec2(textureSize(TEXTURE, 0)));
 	float noise = hash(pixel);
 
-	// Brightness between 92% and 108%.
 	float brightness = mix(1.0 - variation_strength, 1.0 + variation_strength, noise);
 	color.rgb *= brightness;
 

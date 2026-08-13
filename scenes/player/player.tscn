@@ -5,20 +5,20 @@
 [ext_resource type="Script" uid="uid://23r22hxxsg07" path="res://scripts/shared_components/body/rig_component.gd" id="2_h17s1"]
 [ext_resource type="Script" uid="uid://dmkrbdrlx7ii6" path="res://scripts/shared_components/body/constraint_component.gd" id="3_je7p5"]
 [ext_resource type="Script" uid="uid://kbdkwax51k13" path="res://scripts/player/components/input/keyboard_component.gd" id="3_lvxji"]
-[ext_resource type="Script" uid="uid://choe5oigufyvb" path="res://scripts/player/systems/canvas.gd" id="5_p47bc"]
+[ext_resource type="Script" uid="uid://choe5oigufyvb" path="res://scripts/player/systems/canvas_rect.gd" id="5_p47bc"]
 [ext_resource type="Script" uid="uid://couw105c3bde4" path="res://addons/godot_state_charts/state_chart.gd" id="7_0owmy"]
 [ext_resource type="Script" uid="uid://c1vp0ojjvaby1" path="res://addons/godot_state_charts/parallel_state.gd" id="7_qek5x"]
 [ext_resource type="Script" uid="uid://jk2jm1g6q853" path="res://addons/godot_state_charts/compound_state.gd" id="8_5gtgg"]
 [ext_resource type="Script" uid="uid://cytafq8i1y8qm" path="res://addons/godot_state_charts/atomic_state.gd" id="9_h17s1"]
+[ext_resource type="Script" uid="uid://c6xgxx2bsmw24" path="res://scripts/player/systems/canvas_logic.gd" id="10_fm80t"]
+[ext_resource type="Shader" uid="uid://cqxvbqdbcpa85" path="res://resources/shaders/render/spell_render.gdshader" id="12_gx1jg"]
 
-[node name="Player" type="Control" unique_id=80046679]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_70xvl"]
+shader = ExtResource("12_gx1jg")
+
+[node name="Player" type="Node2D" unique_id=14940033 node_paths=PackedStringArray("canvas_logic")]
 script = ExtResource("1_8afob")
+canvas_logic = NodePath("Canvas/CanvasLogic")
 
 [node name="Body" type="Node" parent="." unique_id=1932139857]
 
@@ -41,16 +41,6 @@ metadata/_custom_type_script = "uid://dti1wjldl4vw"
 unique_name_in_owner = true
 script = ExtResource("3_lvxji")
 metadata/_custom_type_script = "uid://kbdkwax51k13"
-
-[node name="Canvas" type="TextureRect" parent="." unique_id=1467487065]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("5_p47bc")
 
 [node name="StateChart" type="Node" parent="." unique_id=157430810]
 script = ExtResource("7_0owmy")
@@ -82,3 +72,22 @@ metadata/_custom_type_script = "uid://jk2jm1g6q853"
 [node name="AtomicState" type="Node" parent="StateChart/ParallelState/Movement/Airborne" unique_id=2032242746]
 script = ExtResource("9_h17s1")
 metadata/_custom_type_script = "uid://cytafq8i1y8qm"
+
+[node name="Status" type="CanvasLayer" parent="." unique_id=101582483]
+
+[node name="Canvas" type="CanvasLayer" parent="." unique_id=488517957]
+
+[node name="CanvasLogic" type="Node" parent="Canvas" unique_id=1953504305 node_paths=PackedStringArray("textureRect")]
+script = ExtResource("10_fm80t")
+textureRect = NodePath("../CanvasRect")
+width = 640
+height = 360
+
+[node name="CanvasRect" type="TextureRect" parent="Canvas" unique_id=499448780]
+material = SubResource("ShaderMaterial_70xvl")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_p47bc")

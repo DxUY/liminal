@@ -7,7 +7,6 @@ var _elements: Dictionary[int, Element] = {}
 func _ready() -> void:
 	register(Empty.new())
 	register(Sand.new())
-	register(Water.new())
 
 ## Registers an element using its unique ID.
 func register(element: Element) -> void:
@@ -25,9 +24,9 @@ func has_element(id: int) -> bool:
 func get_all() -> Dictionary[int, Element]:
 	return _elements
 
-## Builds the single CPU-side GPU database used by the compute shader.
-func build_gpu_databases() -> PackedInt32Array:
-	var gpu_database := PackedInt32Array()
+## Builds the simplified element database for the compute shader.
+func build_gpu_databases() -> Dictionary:
+	var element_data := PackedInt32Array()
 
 	var keys := _elements.keys()
 	keys.sort()
@@ -35,14 +34,17 @@ func build_gpu_databases() -> PackedInt32Array:
 	for id in keys:
 		var element: Element = _elements[id]
 		
-		# Skip Empty (ID 0) so element ID 1 maps to index 0 in the SSBO array
-		if element is Empty or id == 0:
-			continue
+		if id == 0: continue
 
-		# Appends the uniform 9-integer block directly for each element
-		element.serialize_gpu(gpu_database)
+		match element:
+			var e when e is Empty:
+				continue
+			var s when s is Solid:
+				element_data.push_back(Element.Type.SOLID)
+			_:
+				element_data.push_back(Element.Type.EMPTY)
 
-	return gpu_database
+	return {"elements": element_data}
 
 ## Gather the rgba values of elements and put it inside a 1D image
 func build_color_palette() -> Image:

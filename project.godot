@@ -19,7 +19,8 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 GameEvents="*uid://dl11u8l0bx7sd"
 GameClock="*uid://fqt1rr5jj8ka"
 SaveManager="*uid://fswigms5x4vs"
-ElementRegistry="*uid://dtfrxwsk4ihs5"
+CellularAutomaton="*uid://by1ejvxrhupnq"
+ElementRegistry="*uid://xa7jkkbol0hf"
 
 [display]
 
