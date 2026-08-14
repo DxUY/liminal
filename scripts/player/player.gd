@@ -1,34 +1,32 @@
 class_name Player extends Node2D
 
-@onready var mouse_component: MouseComponent = %MouseComponent
-@onready var keyboard_component: KeyboardComponent = %KeyboardComponent
-@export var canvas_logic: CanvasLogic
+@onready var states: State = $States
 
-@export var min_brush_size: int = 1
-@export var max_brush_size: int = 6
+@export var initial_state_name: StringName
+
+var current_state: State
+
+var _states: Dictionary[StringName, State] = {} 
 
 func _ready() -> void:
 	GameEvents.game_started.connect(_on_game_started)
 	add_to_group(SaveManager.SAVABLE_GROUP)
-	
-	if canvas_logic:
-		canvas_logic.initialize()
 
 func _on_game_started() -> void:
-	return
+	# Cache every state and hand it a reference back to this player.
+	for child: Node in states.get_children():
+		if child is State:
+			var state: State = child as State
+			state.player = self
+			_states[child.name] = state
 
-func _process(delta: float) -> void:
-	var mouse_state: Dictionary = mouse_component.get_mouse_state()
-	
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and canvas_logic:
-		# Calculate speed (distance moved this frame)
-		var distance: float = mouse_state["position"].distance_to(mouse_state["previous"])
-		
-		# Map speed to brush size: fast = thin, slow = thick
-		var normalized_speed: float = clamp(distance / 25.0, 0.0, 1.0)
-		var speed_mapped_size: int = int(lerp(float(max_brush_size), float(min_brush_size), normalized_speed))
-		
-		canvas_logic.process_drawing(mouse_state["position"], mouse_state["previous"], speed_mapped_size)
+	current_state = get_state(initial_state_name)
+	if current_state != null:
+		current_state.enter()
+
+func _physics_process(delta: float) -> void:
+	var nextState: State = current_state.physics_process(delta)
+	_change_state(nextState)
 
 #region Savable Contract
 
@@ -40,5 +38,22 @@ func save_data() -> Dictionary:
 
 func load_data() -> void:
 	pass
+
+#endregion
+
+#region Helpers
+
+func get_state(state_name: StringName) -> State:
+	if not _states.has(state_name):
+		push_warning("No state named '%s' under States. Check the node name!" % state_name)
+		return null
+	return _states[state_name]
+
+func _change_state(new_state: State) -> void:
+	if new_state == null or new_state == current_state: return
+	
+	current_state.exit()
+	current_state = new_state
+	current_state.enter()
 
 #endregion

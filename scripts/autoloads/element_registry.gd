@@ -28,7 +28,7 @@ func get_all() -> Dictionary[int, Element]:
 func build_gpu_databases() -> Dictionary:
 	var element_data := PackedInt32Array()
 
-	var keys := _elements.keys()
+	var keys : Array = _elements.keys()
 	keys.sort()
 
 	for id in keys:
@@ -48,7 +48,7 @@ func build_gpu_databases() -> Dictionary:
 
 ## Gather the rgba values of elements and put it inside a 1D image
 func build_color_palette() -> Image:
-	var image := Image.create(_elements.size(), 1, false, Image.FORMAT_RGBA8)
+	var image : Image = Image.create(_elements.size(), 1, false, Image.FORMAT_RGBA8)
 
 	for element: Element in _elements.values():
 		image.set_pixel(element.id, 0, element.color)
