@@ -1,8 +1,9 @@
 class_name Player extends Node2D
 
-@onready var states: State = $States
+@onready var states: State = %States
 
 @export var initial_state_name: StringName
+@export var mouse_component: MouseComponent
 
 var current_state: State
 
@@ -12,7 +13,6 @@ func _ready() -> void:
 	GameEvents.game_started.connect(_on_game_started)
 	add_to_group(SaveManager.SAVABLE_GROUP)
 
-func _on_game_started() -> void:
 	# Cache every state and hand it a reference back to this player.
 	for child: Node in states.get_children():
 		if child is State:
@@ -24,7 +24,13 @@ func _on_game_started() -> void:
 	if current_state != null:
 		current_state.enter()
 
+func _on_game_started() -> void:
+	pass
+
 func _physics_process(delta: float) -> void:
+	if mouse_component.is_pressed("toggle casting") and current_state.name != "Cast":
+		_change_state(get_state(&"Cast"))
+
 	var nextState: State = current_state.physics_process(delta)
 	_change_state(nextState)
 

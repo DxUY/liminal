@@ -7,14 +7,31 @@
 [ext_resource type="Script" uid="uid://kbdkwax51k13" path="res://scripts/player/components/input/keyboard_component.gd" id="3_lvxji"]
 [ext_resource type="Script" uid="uid://choe5oigufyvb" path="res://scripts/ui/canvas_rect.gd" id="5_p47bc"]
 [ext_resource type="Script" uid="uid://b70yurqk5pa6n" path="res://scripts/player/states/base.gd" id="6_5gtgg"]
+[ext_resource type="Script" uid="uid://cfac7kr7sdbjj" path="res://scripts/player/states/idle.gd" id="7_h17s1"]
+[ext_resource type="Script" uid="uid://iejuc1be1w7d" path="res://scripts/player/states/jump.gd" id="8_fm80t"]
+[ext_resource type="Script" uid="uid://on2oc0mi88dh" path="res://scripts/player/states/cast.gd" id="8_je7p5"]
 [ext_resource type="Script" uid="uid://c6xgxx2bsmw24" path="res://scripts/player/systems/canvas_logic.gd" id="10_fm80t"]
+[ext_resource type="Shader" uid="uid://ckb3880fhl41c" path="res://resources/shaders/render/time_slow.gdshader" id="11_gx1jg"]
 [ext_resource type="Shader" uid="uid://cqxvbqdbcpa85" path="res://resources/shaders/render/spell_render.gdshader" id="12_gx1jg"]
+[ext_resource type="Texture2D" uid="uid://bfh2cv7qod1jx" path="res://assets/ui/Squares.png" id="13_fcs02"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fm80t"]
+shader = ExtResource("11_gx1jg")
+shader_parameter/progress = 0.0
+shader_parameter/strength = 0.08
+shader_parameter/center = Vector2(0.5, 0.5)
+shader_parameter/aberration = 0.425
+shader_parameter/width = 0.04
+shader_parameter/feather = 0.135
+shader_parameter/grayscale_enabled = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_70xvl"]
 shader = ExtResource("12_gx1jg")
 
-[node name="Player" type="Node2D" unique_id=14940033]
+[node name="Player" type="Node2D" unique_id=14940033 node_paths=PackedStringArray("mouse_component")]
 script = ExtResource("1_8afob")
+initial_state_name = &"Idle"
+mouse_component = NodePath("Input/MouseComponent")
 
 [node name="Body" type="Node" parent="." unique_id=1932139857]
 
@@ -42,11 +59,37 @@ metadata/_custom_type_script = "uid://kbdkwax51k13"
 unique_name_in_owner = true
 script = ExtResource("6_5gtgg")
 
+[node name="Idle" type="Node" parent="States" unique_id=1106312953]
+script = ExtResource("7_h17s1")
+
+[node name="Jump" type="Node" parent="States" unique_id=220176796]
+script = ExtResource("8_fm80t")
+
+[node name="Cast" type="Node" parent="States" unique_id=1464144633 node_paths=PackedStringArray("canvas_logic", "distortion_rect")]
+script = ExtResource("8_je7p5")
+canvas_logic = NodePath("../../Canvas/CanvasLogic")
+distortion_rect = NodePath("../../Canvas/DistortionRect")
+
+[node name="CameraController" type="Node2D" parent="." unique_id=1261810790]
+
+[node name="Camera2D" type="Camera2D" parent="CameraController" unique_id=1584218668]
+
 [node name="Status" type="CanvasLayer" parent="." unique_id=101582483]
 unique_name_in_owner = true
 
 [node name="Canvas" type="CanvasLayer" parent="." unique_id=488517957]
 unique_name_in_owner = true
+
+[node name="DistortionRect" type="TextureRect" parent="Canvas" unique_id=1865808297]
+material = SubResource("ShaderMaterial_fm80t")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("13_fcs02")
+expand_mode = 3
+stretch_mode = 5
 
 [node name="CanvasLogic" type="Node" parent="Canvas" unique_id=1953504305 node_paths=PackedStringArray("textureRect")]
 script = ExtResource("10_fm80t")
@@ -61,8 +104,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+expand_mode = 3
+stretch_mode = 5
 script = ExtResource("5_p47bc")
-
-[node name="CameraController" type="Node2D" parent="." unique_id=1261810790]
-
-[node name="Camera2D" type="Camera2D" parent="CameraController" unique_id=1584218668]
