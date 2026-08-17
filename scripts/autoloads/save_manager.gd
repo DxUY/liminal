@@ -14,7 +14,6 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(SAVE_DIR)
 	print("SaveManager: Ready. Save Directory: ", SAVE_DIR)
 
-
 ## Save all savable nodes to the given slot (default 0)
 func save(slot: int = 0) -> void:
 	var data: Dictionary = {
@@ -37,7 +36,6 @@ func save(slot: int = 0) -> void:
 
 	print("SaveManager: Saved to slot %d." % slot)
 	GameEvents.game_saved.emit(slot)
-
 
 func load_game(slot: int = 0) -> void:
 	var path: String = SAVE_DIR + (SAVE_FILE % slot)

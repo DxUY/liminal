@@ -9,9 +9,9 @@ enum Type {
 	PARTICLE
 }
 
-var id: int
-
 var vel: Vector3
 
 var frictionFactor: float
 var stoppedMovingThreshold: int = 1
+
+var color: Color

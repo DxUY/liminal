@@ -1,5 +1,4 @@
-class_name RigPoint
-extends RefCounted
+class_name RigPoint extends RefCounted
 
 ## Grid cell occupied by this joint
 var cell: Vector2i

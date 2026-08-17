@@ -10,10 +10,15 @@
 [ext_resource type="Script" uid="uid://cfac7kr7sdbjj" path="res://scripts/player/states/idle.gd" id="7_h17s1"]
 [ext_resource type="Script" uid="uid://iejuc1be1w7d" path="res://scripts/player/states/jump.gd" id="8_fm80t"]
 [ext_resource type="Script" uid="uid://on2oc0mi88dh" path="res://scripts/player/states/cast.gd" id="8_je7p5"]
+[ext_resource type="Script" uid="uid://dtigt6ik3s5qo" path="res://scripts/catalogs/spells/gesture_template.gd" id="10_fcs02"]
 [ext_resource type="Script" uid="uid://c6xgxx2bsmw24" path="res://scripts/player/systems/canvas_logic.gd" id="10_fm80t"]
 [ext_resource type="Shader" uid="uid://ckb3880fhl41c" path="res://resources/shaders/render/time_slow.gdshader" id="11_gx1jg"]
 [ext_resource type="Shader" uid="uid://cqxvbqdbcpa85" path="res://resources/shaders/render/spell_render.gdshader" id="12_gx1jg"]
 [ext_resource type="Texture2D" uid="uid://bfh2cv7qod1jx" path="res://assets/ui/Squares.png" id="13_fcs02"]
+
+[sub_resource type="Resource" id="Resource_ugbui"]
+script = ExtResource("10_fcs02")
+metadata/_custom_type_script = "uid://dtigt6ik3s5qo"
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fm80t"]
 shader = ExtResource("11_gx1jg")
@@ -69,6 +74,7 @@ script = ExtResource("8_fm80t")
 script = ExtResource("8_je7p5")
 canvas_logic = NodePath("../../Canvas/CanvasLogic")
 distortion_rect = NodePath("../../Canvas/DistortionRect")
+spell_templates = Array[ExtResource("10_fcs02")]([SubResource("Resource_ugbui")])
 
 [node name="CameraController" type="Node2D" parent="." unique_id=1261810790]
 
@@ -91,9 +97,9 @@ texture = ExtResource("13_fcs02")
 expand_mode = 3
 stretch_mode = 5
 
-[node name="CanvasLogic" type="Node" parent="Canvas" unique_id=1953504305 node_paths=PackedStringArray("textureRect")]
+[node name="CanvasLogic" type="Node" parent="Canvas" unique_id=1953504305 node_paths=PackedStringArray("texture_rect")]
 script = ExtResource("10_fm80t")
-textureRect = NodePath("../CanvasRect")
+texture_rect = NodePath("../CanvasRect")
 width = 640
 height = 360
 

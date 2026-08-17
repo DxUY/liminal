@@ -28,7 +28,7 @@ func _on_game_started() -> void:
 	pass
 
 func _physics_process(delta: float) -> void:
-	if mouse_component.is_pressed("toggle casting") and current_state.name != "Cast":
+	if current_state.name != "Cast" and mouse_component.consume_press(&"toggle casting"):
 		_change_state(get_state(&"Cast"))
 
 	var nextState: State = current_state.physics_process(delta)
