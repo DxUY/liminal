@@ -3,7 +3,21 @@ class_name Player extends Node2D
 @onready var states: State = %States
 
 @export var initial_state_name: StringName
+
+## components 
+@export_category("components")
+#region Input
+
 @export var mouse_component: MouseComponent
+@export var keyboard_component: KeyboardComponent
+
+#endregion
+
+#region Body
+
+@export var body_assembly_component: BodyAssemblyComponent
+
+#endregion
 
 var current_state: State
 
@@ -25,7 +39,7 @@ func _ready() -> void:
 		current_state.enter()
 
 func _on_game_started() -> void:
-	pass
+	body_assembly_component.assemble_character()
 
 func _physics_process(delta: float) -> void:
 	if current_state.name != "Cast" and mouse_component.consume_press(&"toggle casting"):

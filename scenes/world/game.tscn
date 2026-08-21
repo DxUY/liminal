@@ -4,7 +4,6 @@
 [ext_resource type="Shader" uid="uid://bu5v580jek4bj" path="res://resources/shaders/render/background_render.gdshader" id="2_hqfqh"]
 [ext_resource type="Texture2D" uid="uid://bfh2cv7qod1jx" path="res://assets/ui/Squares.png" id="3_3iwug"]
 [ext_resource type="Texture2D" uid="uid://eh84wtaj8gas" path="res://assets/ui/Circles.png" id="4_r5nxa"]
-[ext_resource type="PackedScene" uid="uid://d30otr3jyaog0" path="res://scenes/player/player.tscn" id="5_h30v7"]
 
 [sub_resource type="Gradient" id="Gradient_hqfqh"]
 offsets = PackedFloat32Array(0, 0.205, 0.495, 0.775, 1)
@@ -50,6 +49,11 @@ shader_parameter/enable_palette_cycling = true
 shader_parameter/palette = SubResource("GradientTexture2D_70xvl")
 shader_parameter/palette_speed = 0.1
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ovvhe"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_c5jem"]
+size = Vector2(1152, 648)
+
 [node name="game" type="Node" unique_id=598136440]
 script = ExtResource("1_w44h4")
 
@@ -82,4 +86,7 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("4_r5nxa")
 
-[node name="Player" parent="." unique_id=14940033 instance=ExtResource("5_h30v7")]
+[node name="MeshInstance2D" type="MeshInstance2D" parent="." unique_id=1179545783]
+material = SubResource("ShaderMaterial_ovvhe")
+position = Vector2(576, 324)
+mesh = SubResource("QuadMesh_c5jem")

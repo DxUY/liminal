@@ -7,8 +7,8 @@ class_name Cast extends State
 @export var min_brush_size: int = 1
 @export var max_brush_size: int = 6
 
-@export_category("Spell Templates")
-@export var spell_templates: Array[GestureTemplate] = []
+@export_category("Spell Component")
+@export var spell_component: SpellComponent
 
 var can_draw: bool = false
 var recognizer: Recognizer
@@ -21,7 +21,11 @@ func enter() -> void:
 	canvas_logic.initialize()
 	
 	recognizer = Recognizer.new()
-	recognizer.load_templates(spell_templates)
+	
+	if spell_component:
+		recognizer.load_templates(spell_component.get_current_spells())
+	else:
+		recognizer.load_templates([])
 	
 	all_strokes.clear()
 	current_stroke.clear()
