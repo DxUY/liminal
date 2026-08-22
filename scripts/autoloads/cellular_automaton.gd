@@ -20,7 +20,7 @@ var rd: RenderingDevice
 var shader: RID
 var pipeline: RID
 
-## Single In-Place Texture Resource (No more ping-ponging!)
+## Single In-Place Texture Resource
 var terrain_texture_rid: RID
 var uniform_set: RID
 
@@ -100,7 +100,7 @@ func _recreate_texture(width: int, height: int) -> void:
 
 func _create_single_texture(width: int, height: int) -> RID:
 	var format := RDTextureFormat.new()
-	format.format = RenderingDevice.DATA_FORMAT_R8G8_UNORM
+	format.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
 	format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
 	format.width = width
 	format.height = height
@@ -148,5 +148,14 @@ func _free_resources() -> void:
 	if terrain_texture_rid.is_valid(): rd.free_rid(terrain_texture_rid)
 	if shader.is_valid(): rd.free_rid(shader)
 	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
+
+#endregion
+
+#region Helpers
+
+func get_simulation_texture() -> Texture2DRD:
+	var texture := Texture2DRD.new()
+	texture.texture_rd_rid = terrain_texture_rid
+	return texture
 
 #endregion

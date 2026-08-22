@@ -1,4 +1,4 @@
-class_name Player extends Node2D
+class_name Player extends Node
 
 @onready var states: State = %States
 

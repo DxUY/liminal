@@ -1,9 +1,10 @@
 [gd_scene format=3 uid="uid://y3ao1lvvxmkv"]
 
-[ext_resource type="Script" uid="uid://cdfkjq03p7xe0" path="res://scripts/world/game.gd" id="1_w44h4"]
 [ext_resource type="Shader" uid="uid://bu5v580jek4bj" path="res://resources/shaders/render/background_render.gdshader" id="2_hqfqh"]
 [ext_resource type="Texture2D" uid="uid://bfh2cv7qod1jx" path="res://assets/ui/Squares.png" id="3_3iwug"]
 [ext_resource type="Texture2D" uid="uid://eh84wtaj8gas" path="res://assets/ui/Circles.png" id="4_r5nxa"]
+[ext_resource type="Shader" uid="uid://cfbpyvvfsgnot" path="res://resources/shaders/render/sim_render.gdshader" id="5_h30v7"]
+[ext_resource type="Script" uid="uid://cama5xys2i6hn" path="res://scripts/world/sim_renderer.gd" id="5_sarsd"]
 
 [sub_resource type="Gradient" id="Gradient_hqfqh"]
 offsets = PackedFloat32Array(0, 0.205, 0.495, 0.775, 1)
@@ -49,15 +50,16 @@ shader_parameter/enable_palette_cycling = true
 shader_parameter/palette = SubResource("GradientTexture2D_70xvl")
 shader_parameter/palette_speed = 0.1
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ovvhe"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_m60fe"]
+shader = ExtResource("5_h30v7")
 
 [sub_resource type="QuadMesh" id="QuadMesh_c5jem"]
 size = Vector2(1152, 648)
 
 [node name="game" type="Node" unique_id=598136440]
-script = ExtResource("1_w44h4")
 
 [node name="background" type="CanvasLayer" parent="." unique_id=1316258109]
+layer = -1
 
 [node name="color" type="ColorRect" parent="background" unique_id=428359818]
 anchors_preset = 15
@@ -86,7 +88,8 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = ExtResource("4_r5nxa")
 
-[node name="MeshInstance2D" type="MeshInstance2D" parent="." unique_id=1179545783]
-material = SubResource("ShaderMaterial_ovvhe")
+[node name="SimRenderer" type="MeshInstance2D" parent="." unique_id=1501677028]
+material = SubResource("ShaderMaterial_m60fe")
 position = Vector2(576, 324)
 mesh = SubResource("QuadMesh_c5jem")
+script = ExtResource("5_sarsd")
