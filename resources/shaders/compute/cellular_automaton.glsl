@@ -38,6 +38,4 @@ void main() {
 		default:
 			break;
 	}
-
-	imageStore(terrain, gid, color);
 }

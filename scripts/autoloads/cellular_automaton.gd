@@ -9,8 +9,8 @@ const PUSH_CONSTANT_SIZE: int = 8
 const SHADER_FILE: RDShaderFile = preload("res://resources/shaders/compute/cellular_automaton.glsl")
 
 ## Simulation grid dimensions.
-var SIMULATION_WIDTH: int = 1152
-var SIMULATION_HEIGHT: int = 648
+var SIMULATION_WIDTH: int
+var SIMULATION_HEIGHT: int
 
 #endregion
 
@@ -127,6 +127,18 @@ func _create_uniform(type: RenderingDevice.UniformType, binding: int, id: RID) -
 	uniform.add_id(id)
 	return uniform
 
+func get_simulation_texture() -> Texture2DRD:
+	var texture := Texture2DRD.new()
+	texture.texture_rd_rid = terrain_texture_rid
+	return texture
+
+func set_simulation_texture(img: Image) -> void:
+	SIMULATION_HEIGHT = img.get_height()
+	SIMULATION_WIDTH = img.get_width()
+
+	_recreate_texture(SIMULATION_WIDTH, SIMULATION_HEIGHT)
+	rd.texture_update(terrain_texture_rid, 0, img.get_data())
+
 #endregion
 
 #region Push Constants
@@ -149,14 +161,5 @@ func _free_resources() -> void:
 	if velocity_texture_rid.is_valid(): rd.free_rid(velocity_texture_rid)
 	if shader.is_valid(): rd.free_rid(shader)
 	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
-
-#endregion
-
-#region Helpers
-
-func get_simulation_texture() -> Texture2DRD:
-	var texture := Texture2DRD.new()
-	texture.texture_rd_rid = terrain_texture_rid
-	return texture
 
 #endregion
