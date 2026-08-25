@@ -1,0 +1,7 @@
+void step_liquid(ivec2 cell) {
+
+}
+
+bool act_on_neighboring_element(ivec2 cell, ivec2 neighbor_cell, bool is_final, bool is_first, ivec2 last_valid_location, int depth) {
+	return false;
+} 

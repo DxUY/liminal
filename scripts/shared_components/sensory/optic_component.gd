@@ -1,5 +1,4 @@
-class_name OpticComponent
-extends Node
+class_name OpticComponent extends Node
 
 @export_range(1.0, 100.0, 0.5, "suffix:m")
 var vision_range: float = 20.0

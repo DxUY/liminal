@@ -28,7 +28,6 @@ func get_all() -> Dictionary[Color, Element]:
 func build_gpu_databases() -> Dictionary:
 	var element_data := PackedInt32Array()
 
-	# Sort keys by a deterministic property if needed (e.g., to_argb32())
 	var keys: Array = _elements.keys()
 	keys.sort_custom(func(a: Color, b: Color) -> bool:
 		return a.to_argb32() < b.to_argb32()
@@ -37,15 +36,18 @@ func build_gpu_databases() -> Dictionary:
 	for color in keys:
 		var element: Element = _elements[color]
 		
-		# Skip based on color or type if applicable
 		if element is Empty:
 			continue
 
+		var element_type := Element.Type.EMPTY
 		match element:
 			var s when s is Solid:
-				element_data.push_back(Element.Type.SOLID)
+				element_type = Element.Type.SOLID
 			_:
-				element_data.push_back(Element.Type.EMPTY)
+				element_type = Element.Type.EMPTY
+
+		element_data.push_back(color.to_argb32())
+		element_data.push_back(element_type)
 
 	return {"elements": element_data}
 

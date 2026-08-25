@@ -1,16 +1,16 @@
 extends Node
 
-#region Constants
+#region Configurations
 
 ## Push constants size: int (4 bytes) + float (4 bytes) = 8 bytes (padded to 16 bytes for safety).
-const PUSH_CONSTANT_SIZE := 8
+const PUSH_CONSTANT_SIZE: int = 8
 
 ## Compute shader used for the simulation.
-const SHADER_FILE := preload("res://resources/shaders/compute/cellular_automaton.glsl")
+const SHADER_FILE: RDShaderFile = preload("res://resources/shaders/compute/cellular_automaton.glsl")
 
 ## Simulation grid dimensions.
-const SIMULATION_WIDTH := 800
-const SIMULATION_HEIGHT := 600
+var SIMULATION_WIDTH: int = 1152
+var SIMULATION_HEIGHT: int = 648
 
 #endregion
 
@@ -22,6 +22,7 @@ var pipeline: RID
 
 ## Single In-Place Texture Resource
 var terrain_texture_rid: RID
+var velocity_texture_rid: RID
 var uniform_set: RID
 
 var element_buffer_rid: RID
@@ -94,38 +95,37 @@ func _dispatch_simulation(delta: float) -> void:
 func _recreate_texture(width: int, height: int) -> void:
 	if uniform_set.is_valid(): rd.free_rid(uniform_set)
 	if terrain_texture_rid.is_valid(): rd.free_rid(terrain_texture_rid)
+	if velocity_texture_rid.is_valid(): rd.free_rid(velocity_texture_rid)
 
-	terrain_texture_rid = _create_single_texture(width, height)
-	uniform_set = _create_uniform_set(terrain_texture_rid)
+	terrain_texture_rid = _create_storage_texture(width, height, RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM)
+	velocity_texture_rid = _create_storage_texture(width, height, RenderingDevice.DATA_FORMAT_R8_SNORM)
+	uniform_set = _create_uniform_set(terrain_texture_rid, velocity_texture_rid)
 
-func _create_single_texture(width: int, height: int) -> RID:
+func _create_storage_texture(width: int, height: int, format_type: RenderingDevice.DataFormat) -> RID:
 	var format := RDTextureFormat.new()
-	format.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+	format.format = format_type
 	format.texture_type = RenderingDevice.TEXTURE_TYPE_2D
 	format.width = width
 	format.height = height
-	format.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT
+	format.usage_bits = RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_SAMPLING_BIT | RenderingDevice.TEXTURE_USAGE_CAN_UPDATE_BIT
 
 	return rd.texture_create(format, RDTextureView.new())
 
-func _create_uniform_set(tex_rid: RID) -> RID:
-	var uniforms: Array[RDUniform] = []
-
-	# Binding 0: Read/Write Image Texture (terrain)
-	var tex_uniform := RDUniform.new()
-	tex_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
-	tex_uniform.binding = 0
-	tex_uniform.add_id(tex_rid)
-	uniforms.append(tex_uniform)
-
-	# Binding 1: Element Database Buffer
-	var elem_uniform := RDUniform.new()
-	elem_uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER
-	elem_uniform.binding = 1
-	elem_uniform.add_id(element_buffer_rid)
-	uniforms.append(elem_uniform)
+func _create_uniform_set(tex_rid: RID, vel_rid: RID) -> RID:
+	var uniforms: Array[RDUniform] = [
+		_create_uniform(RenderingDevice.UNIFORM_TYPE_IMAGE, 0, tex_rid),
+		_create_uniform(RenderingDevice.UNIFORM_TYPE_IMAGE, 1, vel_rid),
+		_create_uniform(RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER, 2, element_buffer_rid)
+	]
 
 	return rd.uniform_set_create(uniforms, shader, 0)
+
+func _create_uniform(type: RenderingDevice.UniformType, binding: int, id: RID) -> RDUniform:
+	var uniform := RDUniform.new()
+	uniform.uniform_type = type
+	uniform.binding = binding
+	uniform.add_id(id)
+	return uniform
 
 #endregion
 
@@ -146,6 +146,7 @@ func _free_resources() -> void:
 	if pipeline.is_valid(): rd.free_rid(pipeline)
 	if uniform_set.is_valid(): rd.free_rid(uniform_set)
 	if terrain_texture_rid.is_valid(): rd.free_rid(terrain_texture_rid)
+	if velocity_texture_rid.is_valid(): rd.free_rid(velocity_texture_rid)
 	if shader.is_valid(): rd.free_rid(shader)
 	if element_buffer_rid.is_valid(): rd.free_rid(element_buffer_rid)
 

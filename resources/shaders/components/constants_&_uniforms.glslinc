@@ -1,10 +1,11 @@
 layout(local_size_x = 8, local_size_y = 8) in;
 
 // --- Single Image Binding (In-Place Read/Write) ---
-layout(rg8, set = 0, binding = 0) uniform image2D terrain;
+layout(rgba8, set = 0, binding = 0) uniform image2D terrain;
+layout(r32f, set = 0, binding = 1) uniform image2D velocity;
 
 // --- Structured Buffers ---
-layout(set = 0, binding = 1, std430) buffer ElementData { int data[]; } elements_db;
+layout(set = 0, binding = 2, std430) buffer ElementData { int data[]; } elements_db;
 
 // --- Push Constants ---
 layout(push_constant) uniform Params {

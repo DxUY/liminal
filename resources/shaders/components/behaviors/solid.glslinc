@@ -1,0 +1,46 @@
+bool act_on_neighboring_element(ivec2 cell, ivec2 neighbor_cell, bool is_final, bool is_first, ivec2 last_valid_location, int depth) {
+	if (isOutOfBounds(neighbor_cell, imageSize(terrain))) return true;
+
+	vec4 neighbor_data = loadCellData(neighbor_cell);
+	if (neighbor_data != vec4(0.0)) return true;
+
+	if (is_final) {
+		vec4 current_pixel = imageLoad(terrain, cell);
+		imageStore(terrain, neighbor_cell, current_pixel);
+		imageStore(terrain, cell, vec4(0.0)); // Fixed missing parenthesis
+	}
+
+	return false;
+}
+
+void step_solid(ivec2 cell) {
+	float vel = loadVelocity(cell);
+	vel += GRAVITY.y;
+
+	int sign_factor = vel < 0.0 ? -1 : 1;
+	int vel_y_max = max(1, int(abs(vel) * 0.016f));
+
+	ivec2 last_valid_location = cell;
+	ivec2 final_target = cell;
+
+	for (int i = 1; i <= vel_y_max; i++) {
+		bool is_final = (i == vel_y_max);
+		bool is_first = (i == 1);
+		ivec2 neighbor_cell = ivec2(cell.x, cell.y + (i * sign_factor));
+		
+		bool stopped = act_on_neighboring_element(cell, neighbor_cell, is_final, is_first, last_valid_location, i);
+		
+		if (stopped) break;
+
+		final_target = neighbor_cell;
+		last_valid_location = neighbor_cell;
+	}
+
+	if (final_target != cell) {
+		float target_vel = loadVelocity(final_target);
+		storeVelocity(final_target, vel);
+		storeVelocity(cell, target_vel);
+	} else {
+		storeVelocity(cell, vel);
+	}
+}

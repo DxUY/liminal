@@ -1,5 +1,3 @@
-// --- Hashing & Randomization Utilities ---
-
 uint murmurHash13(uvec3 src) {
 	const uint M = 0x5bd1e995u;
 	uint h = 1190494759u;
@@ -14,13 +12,19 @@ float hash13(vec3 src) {
 	return uintBitsToFloat(h & 0x007fffffu | 0x3f800000u) - 1.0;
 }
 
-uint loadCellData(ivec2 id, ivec2 size) {
-	if (id.y >= size.y || id.y < 0 || id.x < 0 || id.x >= size.x) {
-		return 0u;
-	}
-    
-	vec4 pixel = imageLoad(terrain, id);
-	uint r = uint(pixel.r * 255.0);
-	uint g = uint(pixel.g * 255.0);
-	return (g << 8) | r;
+bool isOutOfBounds(ivec2 id, ivec2 size) {
+	return id.x < 0 || id.x >= size.x || id.y < 0 || id.y >= size.y;
+}
+
+vec4 loadCellData(ivec2 id) {
+	return imageLoad(terrain, id);
+}
+
+float loadVelocity(ivec2 id) {	
+	return imageLoad(velocity, id).r * 128.0; 
+}
+
+void storeVelocity(ivec2 id, float vel) {
+	float normalized_vel = clamp(vel / 128.0, -1.0, 1.0);
+	imageStore(velocity, id, vec4(normalized_vel, 0.0, 0.0, 1.0));
 }
